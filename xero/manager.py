@@ -12,17 +12,30 @@ from .exceptions import *
 
 class Manager(object):
     DECORATED_METHODS = ('get', 'save', 'filter', 'all', 'put')
-
-    DATETIME_FIELDS = (u'UpdatedDateUTC', u'Updated', u'FullyPaidOnDate')
-    DATE_FIELDS = (u'DueDate', u'Date')
-    BOOLEAN_FIELDS = (u'IsSupplier', u'IsCustomer')
-
-    MULTI_LINES = (u'LineItem', u'Phone', u'Address', 'TaxRate')
+    
+    # Field names we need to convert to native python types.
+    DATETIME_FIELDS = (u'UpdatedDateUTC', u'Updated', u'FullyPaidOnDate', 
+                       u'DateTimeUTC', u'CreatedDateUTC', )
+    DATE_FIELDS = (u'DueDate', u'Date',  u'PaymentDate', u'StartDate',
+                   u'PeriodLockDate',)
+    BOOLEAN_FIELDS = (u'IsSupplier', u'IsCustomer', u'IsDemoCompany',
+                      u'PaysTax')
+    
+    # Fields that are actually an item in a collection need to be
+    # listed here. Typically, you'll see them in the XML something
+    # like:
+    # <Phones>
+    #  <Phone>...</Phone>
+    #  <Phone>...</Phone>
+    # </Phones>
+    MULTI_LINES = (u'LineItem', u'Phone', u'Address', u'TaxRate',
+                   u'TrackingCategory', u'Option', u'Organisation',)
     PLURAL_EXCEPTIONS = {'Addresse': 'Address'}
 
-    def __init__(self, name, oauth):
+    def __init__(self, name, oauth, url=XERO_API_URL):
         self.oauth = oauth
         self.name = name
+        self.url = url
 
         # setup our singular variants of the name
         # only if the name ends in 0
@@ -190,11 +203,11 @@ class Manager(object):
         return wrapper
 
     def get(self, id, headers=None):
-        uri = '/'.join([XERO_API_URL, self.name, id])
+        uri = '/'.join([self.url, self.name, id])
         return uri, 'get', None, headers
 
     def save_or_put(self, data, method='post', headers=None):
-        uri = '/'.join([XERO_API_URL, self.name])
+        uri = '/'.join([self.url, self.name])
         body = {'xml': self._prepare_data_for_save(data)}
         return uri, method, body, headers
 
@@ -213,7 +226,7 @@ class Manager(object):
 
     def filter(self, **kwargs):
         headers = None
-        uri = '/'.join([XERO_API_URL, self.name])
+        uri = '/'.join([self.url, self.name])
         if kwargs:
             if 'since' in kwargs:
                 val = kwargs['since']
@@ -252,5 +265,5 @@ class Manager(object):
         return uri, 'get', None, headers
 
     def all(self):
-        uri = '/'.join([XERO_API_URL, self.name])
+        uri = '/'.join([self.url, self.name])
         return uri, 'get', None, None
