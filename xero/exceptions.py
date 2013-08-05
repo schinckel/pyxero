@@ -1,6 +1,6 @@
 from urlparse import parse_qs
 from xml.dom.minidom import parseString
-
+from xml.parsers.expat import ExpatError
 
 class XeroException(Exception):
     def __init__(self, response, msg=None):
@@ -18,22 +18,34 @@ class XeroBadRequest(XeroException):
     def __init__(self, response):
         # Extract the messages from the text.
         # parseString takes byte content, not unicode.
-        dom = parseString(response.text.encode(response.encoding))
-        messages = dom.getElementsByTagName('Message')
+        
+        try:
+            dom = parseString(response.text.encode(response.encoding))
+        except ExpatError:
+            # Perhaps we should guard this, too.
+            payload = parse_qs(response.text)
+            msg = payload['oauth_problem_advice'][0]
+        else:
+            messages = dom.getElementsByTagName('Message')
 
-        msg = messages[0].childNodes[0].data
-        self.errors = [
-            m.childNodes[0].data for m in messages[1:]
-        ]
+            msg = messages[0].childNodes[0].data
+            self.errors = [
+                m.childNodes[0].data for m in messages[1:]
+            ]
         super(XeroBadRequest, self).__init__(response, msg)
 
 
 class XeroUnauthorized(XeroException):
     # HTTP 401: Unauthorized
     def __init__(self, response):
-        payload = parse_qs(response.text)
-        self.problem = payload['oauth_problem'][0]
-        super(XeroUnauthorized, self).__init__(response, payload['oauth_problem_advice'][0])
+        if response.text == u'You do not have permission to access this resource.':
+            self.problems = u'You do not have permission to access this resource.'
+            super(XeroUnauthorized, self).__init__(response, u'Check scope requirements?')
+        else:
+            payload = parse_qs(response.text)
+            self.problem = payload['oauth_problem'][0]
+            super(XeroUnauthorized, self).__init__(response, payload['oauth_problem_advice'][0])
+        
 
 
 class XeroForbidden(XeroException):
