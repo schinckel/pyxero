@@ -81,24 +81,33 @@ class PublicCredentials(object):
     """
     def __init__(self, consumer_key, consumer_secret,
                  callback_uri=None, verified=False,
-                 oauth_token=None, oauth_token_secret=None):
+                 oauth_token=None, oauth_token_secret=None,
+                 scope=None):
         """Construct the auth instance.
 
         Must provide the consumer key and secret.
         A callback URL may be provided as an option. If provided, the
         Xero verification process will redirect to that URL when
-
+        
+        The scope_list should be provided when required by the API,
+        for instance, this is required when accessing the PayrollAPI.
         """
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
         self.callback_uri = callback_uri
         self.verified = verified
+        # It seems there is something in this list that is breaking.
+        # if scope == 'FULL_API':
+        #     from .api import Xero
+        #     self.scope_list = ['payroll.%s' % s.lower() for s in Xero.PAYROLL_OBJECT_LIST]
+        # else:
+        self.scope_list = list(scope or [])
         self._oauth = None
 
         if oauth_token and oauth_token_secret:
             if self.verified:
                 # If provided, this is a fully verified set of
-                # crednetials. Store the oauth_token and secret
+                # credentials. Store the oauth_token and secret
                 # and initialize OAuth around those
                 self._init_oauth(oauth_token, oauth_token_secret)
 
@@ -236,7 +245,21 @@ class PublicCredentials(object):
     @property
     def url(self):
         "Returns the URL that can be visited to obtain a verifier code"
-        return AUTHORIZE_URL + '?' + urlencode({'oauth_token': self.oauth_token})
+        
+        data = {
+            'oauth_token': self.oauth_token,
+        }
+        if self.callback_uri:
+            data['oauth_callback'] = self.callback_uri
+        
+        url = AUTHORIZE_URL + '?' + urlencode(data)
+        
+        if self.scope_list:
+            # Can't urlencode this, it fails.
+            url += '&scope=' + ','.join(self.scope_list)
+        
+        return url
+        
 
     @property
     def oauth(self):
