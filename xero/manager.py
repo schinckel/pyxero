@@ -231,6 +231,7 @@ class Manager(object):
 
     def filter(self, **kwargs):
         headers = None
+        page = kwargs.pop('page', None)
         uri = '/'.join([self.url, self.name])
         if kwargs:
             if 'since' in kwargs:
@@ -266,7 +267,13 @@ class Manager(object):
 
             if params:
                 uri += '?where=' + urllib.quote('&&'.join(params))
-
+        
+        if page:
+            if '?' in uri:
+                uri += '&page=%s' % page
+            else:
+                uri += '?page=%s' % page
+        
         return uri, 'get', None, headers
 
     def all(self):
