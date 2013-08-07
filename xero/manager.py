@@ -130,6 +130,10 @@ class Manager(object):
         return out
 
     def dict_to_xml(self, root_elm, data):
+        if not isinstance(data, dict):
+            root_elm.text = data
+            return root_elm
+        
         for key in data.keys():
             if key in self.NO_SEND_FIELDS:
                 continue
@@ -169,13 +173,14 @@ class Manager(object):
         return root_elm
 
     def _prepare_data_for_save(self, data):
-        if isinstance(data, list) or isinstance(data, tuple):
-            root_elm = Element(self.name)
-            for d in data:
-                sub_elm = SubElement(root_elm, self.singular)
-                self.dict_to_xml(sub_elm, d)
-        else:
-            root_elm = self.dict_to_xml(Element(self.singular), data)
+        root_elm = Element(self.name)
+        
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+
+        for d in data:
+            sub_elm = SubElement(root_elm, self.singular)
+            self.dict_to_xml(sub_elm, d)
 
         return tostring(root_elm)
 
