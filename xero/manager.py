@@ -159,6 +159,11 @@ class Manager(object):
     def _get_data(self, func):
         def wrapper(*args, **kwargs):
             uri, method, body, headers = func(*args, **kwargs)
+            if body and 'xml' in body:
+                body = body['xml']
+                if not headers:
+                    headers = {}
+                headers['Content-Type'] = 'application/xml'
             response = getattr(requests, method)(uri, data=body, headers=headers, auth=self.oauth)
 
             if response.status_code == 200:
