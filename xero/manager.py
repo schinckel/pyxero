@@ -34,6 +34,8 @@ class Manager(object):
                    u'TimesheetLine', u'NumberOfUnit', u'Timesheet')
     PLURAL_EXCEPTIONS = {'Addresse': 'Address'}
 
+    # Fields that should not be sent to the server.
+    NO_SEND_FIELDS = (u'UpdatedDateUTC',)
     def __init__(self, name, oauth, url):
         self.oauth = oauth
         self.name = name
@@ -103,6 +105,9 @@ class Manager(object):
 
     def dict_to_xml(self, root_elm, data):
         for key in data.keys():
+            if key in self.NO_SEND_FIELDS:
+                continue
+            
             sub_data = data[key]
             elm = SubElement(root_elm, key)
 
