@@ -32,7 +32,7 @@ class Manager(object):
                    u'TrackingCategory', u'Option', u'Organisation',)
     PLURAL_EXCEPTIONS = {'Addresse': 'Address'}
 
-    def __init__(self, name, oauth, url=XERO_API_URL):
+    def __init__(self, name, oauth, url):
         self.oauth = oauth
         self.name = name
         self.url = url

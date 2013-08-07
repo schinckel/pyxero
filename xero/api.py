@@ -1,5 +1,5 @@
 from .manager import Manager
-from .constants import XERO_PAYROLL_API_URL
+from .constants import XERO_PAYROLL_API_URL, XERO_API_URL
 
 class Xero(object):
     """An ORM-like interface to the Xero API"""
@@ -17,7 +17,7 @@ class Xero(object):
         # the lowercase name of the object and attach it to an
         # instance of a Manager object to operate on it
         for name in self.OBJECT_LIST:
-            setattr(self, name.lower(), Manager(name, credentials.oauth))
+            setattr(self, name.lower(), Manager(name, credentials.oauth), url=XERO_API_URL)
         
         for name in self.PAYROLL_OBJECT_LIST:
             setattr(self, name.lower(), Manager(name, credentials.oauth, url=XERO_PAYROLL_API_URL))
