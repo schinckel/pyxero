@@ -5,6 +5,7 @@ from dateutil.parser import parse
 import urllib
 import requests
 from urlparse import parse_qs
+from uuid import UUID
 
 from .constants import XERO_API_URL
 from .exceptions import *
@@ -33,9 +34,13 @@ class Manager(object):
                    u'TrackingCategory', u'Option', u'Employee',
                    u'TimesheetLine', u'NumberOfUnit', u'Timesheet')
     PLURAL_EXCEPTIONS = {'Addresse': 'Address'}
-
+    
     # Fields that should not be sent to the server.
     NO_SEND_FIELDS = (u'UpdatedDateUTC',)
+    # Currently experimenting with just converting all things ending in 'ID'
+    # to UUID values.
+    GUID_FIELDS = (u'EmployeeID',)
+    
     def __init__(self, name, oauth, url):
         self.oauth = oauth
         self.name = name
@@ -251,6 +256,8 @@ class Manager(object):
                     return 'true' if kwargs[key] else 'false'
                 elif key in self.DATETIME_FIELDS:
                     return kwargs[key].isoformat()
+                elif key in self.GUID_FIELDS or key.endswith('ID') or isinstance(kwargs[key], UUID):
+                    return 'Guid("%s")' % kwargs[key]
                 else:
                     return '"%s"' % str(kwargs[key])
 
