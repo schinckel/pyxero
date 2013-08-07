@@ -16,7 +16,8 @@ class Manager(object):
     # Field names we need to convert to native python types.
     DATETIME_FIELDS = (u'UpdatedDateUTC', u'Updated', u'FullyPaidOnDate', 
                        u'DateTimeUTC', u'CreatedDateUTC', )
-    DATE_FIELDS = (u'DueDate', u'Date',  u'PaymentDate', u'StartDate',
+    DATE_FIELDS = (u'DueDate', u'Date',  u'PaymentDate', 
+                   u'StartDate', u'EndDate',
                    u'PeriodLockDate',)
     BOOLEAN_FIELDS = (u'IsSupplier', u'IsCustomer', u'IsDemoCompany',
                       u'PaysTax')
@@ -29,7 +30,8 @@ class Manager(object):
     #  <Phone>...</Phone>
     # </Phones>
     MULTI_LINES = (u'LineItem', u'Phone', u'Address', u'TaxRate',
-                   u'TrackingCategory', u'Option', u'Organisation',)
+                   u'TrackingCategory', u'Option', u'Employee',
+                   u'TimesheetLine', u'NumberOfUnit', u'Timesheet')
     PLURAL_EXCEPTIONS = {'Addresse': 'Address'}
 
     def __init__(self, name, oauth, url):
