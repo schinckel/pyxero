@@ -5,6 +5,7 @@ from dateutil.parser import parse
 import urllib
 import requests
 from urlparse import parse_qs
+from decimal import Decimal
 from uuid import UUID
 
 from .constants import XERO_API_URL
@@ -22,7 +23,7 @@ class Manager(object):
                    u'PeriodLockDate',)
     BOOLEAN_FIELDS = (u'IsSupplier', u'IsCustomer', u'IsDemoCompany',
                       u'PaysTax')
-    
+    DECIMAL_FIELDS = (u'Hours', u'NumberOfUnit')
     # Fields that are actually an item in a collection need to be
     # listed here. Typically, you'll see them in the XML something
     # like:
@@ -75,35 +76,55 @@ class Manager(object):
             lists = [l for l in deep_list if isinstance(l, tuple)]
             keys = [l for l in deep_list if isinstance(l, unicode)]
             for key, data in zip(keys, lists):
-
+                if not data:
+                    # Skip things that are empty tags?
+                    continue
+                
                 if len(data) == 1:
                     # we're setting a value
                     # check to see if we need to apply any special
                     # formatting to the value
                     val = data[0]
+                    # if key in self.DECIMAL_FIELDS:
+                    #     val = Decimal(val)
                     if key in self.BOOLEAN_FIELDS:
                         val = True if val.lower() == 'true' else False
-                    if key in self.DATETIME_FIELDS:
+                    elif key in self.DATETIME_FIELDS:
                         val = parse(val)
-                    if key in self.DATE_FIELDS:
+                    elif key in self.DATE_FIELDS:
                         val = parse(val).date()
-
-                    out[key] = val
-
-                elif len(data) > 1 and ((key in self.MULTI_LINES) or (key == self.singular)):
-                    # our data is a collection and needs to be handled as such
-                    if out:
-                        out.append(self.convert_to_dict(data))
-                    else:
-                        out = [self.convert_to_dict(data)]
-
-                elif len(data) > 1:
-                    out[key] = self.convert_to_dict(data)
+                    elif key in self.GUID_FIELDS or key.endswith('ID'):
+                        val = UUID(val)
+                    
+                    data = val
+                else:
+                    # We have a deeper data structure, that we need
+                    # to recursively process.
+                    data = self.convert_to_dict(data)
+                
+                # Now, we set the correct key in the output data 
+                # structure. If this is one of our MULTI_LINES objects,
+                # or this is the root object, and we have more than one,
+                # then it is a member of a list.
+                if key in self.MULTI_LINES:
+                    # Collection
+                    if not out:
+                        out = []
+                    out.append(data) 
+                else:
+                    out[key] = data
 
         elif len(deep_list) == 2:
             key = deep_list[0]
-            data = deep_list[1]
-            out[key] = self.convert_to_dict(data)
+            data = self.convert_to_dict(deep_list[1])
+            # If we have a MULTI_LINES object, we still need to make it
+            # part of a collection, even if there is only one of them.
+            if key in self.MULTI_LINES:
+                if not out:
+                    out = []
+                out.append(data)
+            else:
+                out[key] = data
         else:
             out = deep_list[0]
         return out
