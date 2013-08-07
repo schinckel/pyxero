@@ -85,9 +85,9 @@ class Manager(object):
                     # check to see if we need to apply any special
                     # formatting to the value
                     val = data[0]
-                    # if key in self.DECIMAL_FIELDS:
-                    #     val = Decimal(val)
-                    if key in self.BOOLEAN_FIELDS:
+                    if key in self.DECIMAL_FIELDS:
+                        val = Decimal(val)
+                    elif key in self.BOOLEAN_FIELDS:
                         val = True if val.lower() == 'true' else False
                     elif key in self.DATETIME_FIELDS:
                         val = parse(val)

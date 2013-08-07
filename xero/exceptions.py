@@ -19,6 +19,8 @@ class XeroBadRequest(XeroException):
         # Extract the messages from the text.
         # parseString takes byte content, not unicode.
         
+        print response.request.url
+        
         try:
             dom = parseString(response.text.encode(response.encoding))
         except ExpatError:
