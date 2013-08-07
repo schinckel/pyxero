@@ -21,3 +21,20 @@ class Xero(object):
         
         for name in self.PAYROLL_OBJECT_LIST:
             setattr(self, name.lower(), Manager(name, credentials.oauth, url=XERO_PAYROLL_API_URL))
+        
+        self._organisation = None
+    
+    
+    # A way to link directly to specific pages within Xero that we might
+    # need users to access. This may move back into my application.
+    @property
+    def links(self):
+        if self._organisation is None:
+            self._organisation = self.organisations.all()[0]
+        
+        return {
+            'dashboard': 'https://my.xero.com//Action/OrganisationLogin/%(ShortCode)s' % self._organisation,
+            'payroll_settings': 'https://payroll.xero.com/Settings?CID=%(ShortCode)s' % self._organisation,
+            'earnings_rates': 'https://payroll.xero.com/Settings/PayslipItems/EarningsRates?CID=%(ShortCode)s' % self._organisation,
+            
+        }
