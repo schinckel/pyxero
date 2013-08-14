@@ -223,8 +223,12 @@ class Manager(object):
                 if not headers:
                     headers = {}
                 headers['Content-Type'] = 'application/xml'
+            import time
+            start = time.time()
             response = getattr(requests, method)(uri, data=body, headers=headers, auth=self.oauth)
-
+            finish = time.time()
+            print "Request to %s took %s" % (uri, finish-start)
+            
             if response.status_code == 200:
                 if response.headers['content-type'] == 'application/pdf':
                     return response.text
