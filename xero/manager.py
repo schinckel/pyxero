@@ -32,6 +32,7 @@ class Manager(object):
                       u'IsExemptFromTax', u'IsExemptFromSuper',
                       )
     DECIMAL_FIELDS = (u'Hours', u'NumberOfUnit')
+    INTEGER_FIELDS = (u'FinancialYearEndDay', u'FinancialYearEndMonth')
     # Fields that are actually an item in a collection need to be
     # listed here. Typically, you'll see them in the XML something
     # like:
@@ -104,6 +105,8 @@ class Manager(object):
                         val = parse(val).date()
                     elif key in self.GUID_FIELDS or key.endswith('ID'):
                         val = UUID(val)
+                    elif key in self.INTEGER_FIELDS:
+                        val = int(val)
                     
                     data = val
                 else:
