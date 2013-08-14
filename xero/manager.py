@@ -33,6 +33,9 @@ class Manager(object):
                       )
     DECIMAL_FIELDS = (u'Hours', u'NumberOfUnit')
     INTEGER_FIELDS = (u'FinancialYearEndDay', u'FinancialYearEndMonth')
+    TIMEZONE_FIELDS = (u'Timezone',)
+    COUNTRY_FIELDS = (u'CountryCode',)
+    CURRENCY_FIELDS = (u'BaseCurrency',)
     # Fields that are actually an item in a collection need to be
     # listed here. Typically, you'll see them in the XML something
     # like:
