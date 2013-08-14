@@ -16,7 +16,7 @@ class ExceptionsTest(unittest.TestCase):
     def test_bad_request(self, r_put):
         "Data with validation errors raises a bad request exception"
         # Verified response from the live API
-        r_put.return_value = Mock(status_code=400, text="""<ApiException xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        r_put.return_value = Mock(encoding="utf-8", status_code=400, text="""<ApiException xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ErrorNumber>10</ErrorNumber>
   <Type>ValidationException</Type>
   <Message>A validation exception occurred</Message>
@@ -101,7 +101,7 @@ class ExceptionsTest(unittest.TestCase):
     def test_unauthorized_invalid(self, r_get):
         "A session with an invalid token raises an unauthorized exception"
         # Verified response from the live API
-        r_get.return_value = Mock(status_code=401, text='oauth_problem=signature_invalid&oauth_problem_advice=Failed%20to%20validate%20signature')
+        r_get.return_value = Mock(encoding="utf-8", status_code=401, text='oauth_problem=signature_invalid&oauth_problem_advice=Failed%20to%20validate%20signature')
 
         credentials = Mock()
         xero = Xero(credentials)
@@ -125,7 +125,7 @@ class ExceptionsTest(unittest.TestCase):
     def test_unauthorized_expired(self, r_get):
         "A session with an expired token raises an unauthorized exception"
         # Verified response from the live API
-        r_get.return_value = Mock(status_code=401, text="oauth_problem=token_expired&oauth_problem_advice=The%20access%20token%20has%20expired")
+        r_get.return_value = Mock(encoding="utf-8", status_code=401, text="oauth_problem=token_expired&oauth_problem_advice=The%20access%20token%20has%20expired")
 
         credentials = Mock()
         xero = Xero(credentials)
@@ -149,7 +149,7 @@ class ExceptionsTest(unittest.TestCase):
     def test_forbidden(self, r_get):
         "In case of an SSL failure, a Forbidden exception is raised"
         # This is unconfirmed; haven't been able to verify this response from API.
-        r_get.return_value = Mock(status_code=403, text="The client SSL certificate was not valid.")
+        r_get.return_value = Mock(encoding="utf-8", status_code=403, text="The client SSL certificate was not valid.")
 
         credentials = Mock()
         xero = Xero(credentials)
@@ -218,7 +218,7 @@ class ExceptionsTest(unittest.TestCase):
     def test_not_implemented(self, r_post):
         "In case of an SSL failure, a Forbidden exception is raised"
         # Verified response from the live API
-        r_post.return_value = Mock(status_code=501, text="""<ApiException xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        r_post.return_value = Mock(encoding="utf-8", status_code=501, text="""<ApiException xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <ErrorNumber>20</ErrorNumber>
     <Type>ApiMethodNotImplementedException</Type>
     <Message>The Api Method called is not implemented</Message>
