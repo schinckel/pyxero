@@ -147,7 +147,7 @@ class Manager(object):
             sub_data = data[key]
             elm = SubElement(root_elm, key)
 
-            is_list = isinstance(sub_data, list) or isinstance(sub_data, tuple)
+            is_list = isinstance(sub_data, (list, tuple))
             is_plural = key[len(key)-1] == "s"
             plural_name = key[:len(key)-1]
 
