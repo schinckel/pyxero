@@ -20,9 +20,17 @@ class Manager(object):
                        u'DateTimeUTC', u'CreatedDateUTC', )
     DATE_FIELDS = (u'DueDate', u'Date',  u'PaymentDate', 
                    u'StartDate', u'EndDate',
-                   u'PeriodLockDate',)
+                   u'PeriodLockDate', u'DateOfBirth',
+                   u'OpeningBalanceDate',
+                   )
     BOOLEAN_FIELDS = (u'IsSupplier', u'IsCustomer', u'IsDemoCompany',
-                      u'PaysTax')
+                      u'PaysTax', u'IsAuthorisedToApproveTimesheets',
+                      u'IsAuthorisedToApproveLeave', u'HasHELPDebt',
+                      u'AustralianResidentForTaxPurposes',
+                      u'TaxFreeThresholdClaimed', u'HasSFSSDebt',
+                      u'EligibleToReceiveLeaveLoading',
+                      u'IsExemptFromTax', u'IsExemptFromSuper',
+                      )
     DECIMAL_FIELDS = (u'Hours', u'NumberOfUnit')
     # Fields that are actually an item in a collection need to be
     # listed here. Typically, you'll see them in the XML something
@@ -31,9 +39,10 @@ class Manager(object):
     #  <Phone>...</Phone>
     #  <Phone>...</Phone>
     # </Phones>
-    MULTI_LINES = (u'LineItem', u'Phone', u'Address', u'TaxRate',
+    MULTI_LINES = (u'LineItem', u'Address', u'TaxRate',
                    u'TrackingCategory', u'Option', u'Employee',
-                   u'TimesheetLine', u'NumberOfUnit', u'Timesheet')
+                   u'TimesheetLine', u'NumberOfUnit', u'Timesheet',
+                   u'EarningsRate', u'PayrollCalendar',)
     PLURAL_EXCEPTIONS = {'Addresse': 'Address'}
     
     # Fields that should not be sent to the server.
