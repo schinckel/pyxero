@@ -197,7 +197,8 @@ class Manager(object):
     def _get_results(self, data):
         response = data[u'Response']
         # Need custom handling for Organisation, as it returns
-        # {'Organisations':{'Organisation': {}}}
+        #   {'Organisations':{'Organisation': {}}}
+        # ie, the pluralised name is in the response.
         if self.name + 's' in response:
             response = response[self.name + 's']
         
