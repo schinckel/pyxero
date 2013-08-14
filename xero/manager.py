@@ -91,6 +91,8 @@ class Manager(object):
             for key, data in zip(keys, lists):
                 if not data:
                     # Skip things that are empty tags?
+                    # Or set them to None?
+                    out[key] = None
                     continue
                 
                 if len(data) == 1:
