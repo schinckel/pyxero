@@ -11,6 +11,13 @@ from uuid import UUID
 from .constants import XERO_API_URL
 from .exceptions import *
 
+def isplural(word):
+    return word[-1].lower() == 's'
+
+def singular(word):
+    if isplural(word):
+        return word[:-1]
+    return word
 
 class Manager(object):
     DECORATED_METHODS = ('get', 'save', 'filter', 'all', 'put')
@@ -36,17 +43,6 @@ class Manager(object):
     TIMEZONE_FIELDS = (u'Timezone',)
     COUNTRY_FIELDS = (u'CountryCode',)
     CURRENCY_FIELDS = (u'BaseCurrency',)
-    # Fields that are actually an item in a collection need to be
-    # listed here. Typically, you'll see them in the XML something
-    # like:
-    # <Phones>
-    #  <Phone>...</Phone>
-    #  <Phone>...</Phone>
-    # </Phones>
-    MULTI_LINES = (u'LineItem', u'Address', u'TaxRate',
-                   u'TrackingCategory', u'Option', u'Employee',
-                   u'TimesheetLine', u'NumberOfUnit', u'Timesheet',
-                   u'EarningsRate', u'PayrollCalendar',)
     PLURAL_EXCEPTIONS = {'Addresse': 'Address'}
     
     # Fields that should not be sent to the server.
@@ -61,7 +57,7 @@ class Manager(object):
         self.url = url
 
         # setup our singular variants of the name
-        # only if the name ends in 0
+        # only if the name ends in s
         if name[-1] == "s":
             self.singular = name[:len(name)-1]
         else:
@@ -69,7 +65,7 @@ class Manager(object):
 
         for method_name in self.DECORATED_METHODS:
             method = getattr(self, method_name)
-            setattr(self, method_name, self._get_data(method))
+            setattr(self, method_name, self._get_data(method, method_name))
 
     def walk_dom(self, dom):
         tree_list = tuple()
@@ -85,16 +81,22 @@ class Manager(object):
 
     def convert_to_dict(self, deep_list):
         out = {}
+
         if len(deep_list) > 2:
             lists = [l for l in deep_list if isinstance(l, tuple)]
             keys = [l for l in deep_list if isinstance(l, unicode)]
+
+            if len(keys) > 1 and len(set(keys)) == 1:
+                # This is a collection... all of the keys are the same.
+                return [self.convert_to_dict(data) for data in lists]
+
             for key, data in zip(keys, lists):
                 if not data:
                     # Skip things that are empty tags?
                     # Or set them to None?
                     out[key] = None
                     continue
-                
+
                 if len(data) == 1:
                     # we're setting a value
                     # check to see if we need to apply any special
@@ -118,29 +120,22 @@ class Manager(object):
                     # We have a deeper data structure, that we need
                     # to recursively process.
                     data = self.convert_to_dict(data)
-                
-                # Now, we set the correct key in the output data 
-                # structure. If this is one of our MULTI_LINES objects,
-                # then it is a member of a list.
-                if key in self.MULTI_LINES:
-                    # Collection
-                    if not out:
-                        out = []
-                    out.append(data) 
-                else:
-                    out[key] = data
+                    # Which may itself be a collection. Quick, check!
+                    if isinstance(data, dict) and isplural(key) and [singular(key)] == data.keys():
+                        data = [data[singular(key)]]
+
+                out[key] = data
 
         elif len(deep_list) == 2:
             key = deep_list[0]
             data = self.convert_to_dict(deep_list[1])
-            # If we have a MULTI_LINES object, we still need to make it
-            # part of a collection, even if there is only one of them.
-            if key in self.MULTI_LINES:
-                if not out:
-                    out = []
-                out.append(data)
-            else:
-                out[key] = data
+
+            # If our key is repeated in our child object, but in singular
+            # form (and is the only key), then this object is a collection.
+            if isplural(key) and [singular(key)] == data.keys():
+                data = [data[singular(key)]]
+
+            out[key] = data
         else:
             out = deep_list[0]
         return out
@@ -157,7 +152,7 @@ class Manager(object):
             sub_data = data[key]
             elm = SubElement(root_elm, key)
 
-            is_list = isinstance(sub_data, list) or isinstance(sub_data, tuple)
+            is_list = isinstance(sub_data, (list, tuple))
             is_plural = key[len(key)-1] == "s"
             plural_name = key[:len(key)-1]
 
@@ -207,20 +202,20 @@ class Manager(object):
     def _get_results(self, data):
         response = data[u'Response']
         # Need custom handling for Organisation, as it returns
-        # {'Organisations':{'Organisation': {}}}
+        #   {'Organisations':{'Organisation': {}}}
+        # ie, the pluralised name is in the response.
         if self.name + 's' in response:
             response = response[self.name + 's']
         
         result = response.get(self.name, {})
         
-
         if isinstance(result, dict) and self.singular in result:
             return result[self.singular]
 
         return result
 
 
-    def _get_data(self, func):
+    def _get_data(self, func, name):
         def wrapper(*args, **kwargs):
             uri, method, body, headers = func(*args, **kwargs)
             if body and 'xml' in body:
@@ -240,7 +235,17 @@ class Manager(object):
                 # parseString takes byte content, not unicode.
                 dom = parseString(response.text.encode(response.encoding))
                 data = self.convert_to_dict(self.walk_dom(dom))
-                return self._get_results(data)
+                results = self._get_results(data)
+
+                if name == 'get':
+                    if isinstance(results, list):
+                        if not len(results):
+                            return {}
+                        if len(results) == 1:
+                            return results[0]
+                        raise Exception('Multiple objects returned')
+
+                return results
 
             elif response.status_code == 400:
                 raise XeroBadRequest(response)
