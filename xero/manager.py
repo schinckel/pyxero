@@ -201,13 +201,19 @@ class Manager(object):
 
     def _get_results(self, data):
         response = data[u'Response']
+        # Need custom handling for Organisation, as it returns
+        # {'Organisations':{'Organisation': {}}}
+        if self.name + 's' in response:
+            response = response[self.name + 's']
+        
         result = response.get(self.name, {})
-
-        if isinstance(result, (list, tuple)):
-            return result
+        
 
         if isinstance(result, dict) and self.singular in result:
             return result[self.singular]
+
+        return result
+
 
     def _get_data(self, func):
         def wrapper(*args, **kwargs):
