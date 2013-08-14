@@ -116,7 +116,6 @@ class Manager(object):
                 
                 # Now, we set the correct key in the output data 
                 # structure. If this is one of our MULTI_LINES objects,
-                # or this is the root object, and we have more than one,
                 # then it is a member of a list.
                 if key in self.MULTI_LINES:
                     # Collection
@@ -168,8 +167,12 @@ class Manager(object):
                 # in the list needs to be wrapped in an XML
                 # node that is a singular version of the list name.
                 if is_plural:
+                    plural_name = self.PLURAL_EXCEPTIONS.get(plural_name, plural_name)
                     for d in sub_data:
-                        plural_name = self.PLURAL_EXCEPTIONS.get(plural_name, plural_name)
+                        # The XML module will complain about Decimal objects
+                        # Need to manually convert to str objects.
+                        if isinstance(d, Decimal):
+                            d = str(d)
                         self.dict_to_xml(SubElement(elm, plural_name), d)
 
                 # key name isn't a plural. Just insert the content
