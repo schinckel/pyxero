@@ -215,6 +215,21 @@ This same API pattern exists for the following API objects:
  * TaxRates
  * TrackingCategories
 
+The Xero Payroll API (only available to Australian organisations) has a similar pattern, but with the following objects:
+
+ * Employees
+ * LeaveApplications
+ * PayItems
+ * PayrollCalendars
+ * PayRuns
+ * Payslip
+ * SuperFunds
+ * SuperFundProducts
+ * Timesheets
+
+There are some differences to the Payroll API:
+
+ 1. You must explicitly declare which objects you will be accessing during the session.
 
 .. _Xero: http://developer.xero.com
 .. _requests: http://python-requests.org
