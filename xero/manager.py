@@ -62,7 +62,7 @@ class Manager(object):
 
         for method_name in self.DECORATED_METHODS:
             method = getattr(self, method_name)
-            setattr(self, method_name, self._get_data(method))
+            setattr(self, method_name, self._get_data(method, method_name))
 
     def walk_dom(self, dom):
         tree_list = tuple()
@@ -204,14 +204,13 @@ class Manager(object):
         
         result = response.get(self.name, {})
         
-
         if isinstance(result, dict) and self.singular in result:
             return result[self.singular]
 
         return result
 
 
-    def _get_data(self, func):
+    def _get_data(self, func, name):
         def wrapper(*args, **kwargs):
             uri, method, body, headers = func(*args, **kwargs)
             if body and 'xml' in body:
@@ -227,7 +226,17 @@ class Manager(object):
                 # parseString takes byte content, not unicode.
                 dom = parseString(response.text.encode(response.encoding))
                 data = self.convert_to_dict(self.walk_dom(dom))
-                return self._get_results(data)
+                results = self._get_results(data)
+
+                if name == 'get':
+                    if isinstance(results, list):
+                        if not len(results):
+                            return {}
+                        if len(results) == 1:
+                            return results[0]
+                        raise Exception('Multiple objects returned')
+
+                return results
 
             elif response.status_code == 400:
                 raise XeroBadRequest(response)
