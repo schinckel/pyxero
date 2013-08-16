@@ -20,7 +20,6 @@ setup(
     install_requires=[
         'requests>=1.1.0',
         'requests-oauthlib>=0.3.0',
-        'python-dateutil>=2.1',
     ],
     license='New BSD',
     classifiers=[

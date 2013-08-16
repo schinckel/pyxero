@@ -1,12 +1,14 @@
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from urlparse import parse_qs
+from uuid import UUID
 from xml.dom.minidom import parseString
 from xml.etree.ElementTree import tostring, SubElement, Element
-from datetime import datetime
-from dateutil.parser import parse
+import json
+import re
 import urllib
+
 import requests
-from urlparse import parse_qs
-from decimal import Decimal
-from uuid import UUID
 
 from .constants import XERO_API_URL
 from .exceptions import *
@@ -19,37 +21,55 @@ def singular(word):
         return word[:-1]
     return word
 
+DATE = re.compile(
+    r'^(\/Date\((?P<timestamp>\d+)((?P<offset_h>[-+]\d\d)(?P<offset_m>\d\d))?\)\/)'
+    r'|'
+    r'((?P<year>\d{4})-(?P<month>[0-2]\d)-0?(?P<day>[0-3]\d)'
+    r'T'
+    r'(?P<hour>[0-5]\d):(?P<minute>[0-5]\d):(?P<second>[0-6]\d))$'
+)
+
+def parse_date(string, force_datetime=False):
+    matches = DATE.match(string)
+    if not matches: return None
+    
+    values = dict([
+        (
+            k, 
+            v if v[0] in '+-' else int(v)
+        ) for k,v in matches.groupdict().items() if v and int(v)
+    ])
+    
+    if 'timestamp' in values:
+        return datetime.utcfromtimestamp(
+            int(values['timestamp']) / 1000.0
+        ) + timedelta(
+            hours=int(values.get('offset_h', 0)),
+            minutes=int(values.get('offset_m', 0))
+        )
+    
+    if len(values) > 3 or force_datetime:
+        return datetime(**values)
+    
+    return date(**values)
+
+def object_hook(dct):
+    for key,value in dct.items():
+        if isinstance(value, basestring):
+            value = parse_date(value)
+            if value:
+                dct[key] = value
+            
+    return dct
+
 class Manager(object):
     DECORATED_METHODS = ('get', 'save', 'filter', 'all', 'put')
     
     # Field names we need to convert to native python types.
-    DATETIME_FIELDS = (u'UpdatedDateUTC', u'Updated', u'FullyPaidOnDate', 
-                       u'DateTimeUTC', u'CreatedDateUTC', )
-    DATE_FIELDS = (u'DueDate', u'Date',  u'PaymentDate', 
-                   u'StartDate', u'EndDate',
-                   u'PeriodLockDate', u'DateOfBirth',
-                   u'OpeningBalanceDate',
-                   )
-    BOOLEAN_FIELDS = (u'IsSupplier', u'IsCustomer', u'IsDemoCompany',
-                      u'PaysTax', u'IsAuthorisedToApproveTimesheets',
-                      u'IsAuthorisedToApproveLeave', u'HasHELPDebt',
-                      u'AustralianResidentForTaxPurposes',
-                      u'TaxFreeThresholdClaimed', u'HasSFSSDebt',
-                      u'EligibleToReceiveLeaveLoading',
-                      u'IsExemptFromTax', u'IsExemptFromSuper',
-                      )
-    DECIMAL_FIELDS = (u'Hours', u'NumberOfUnit')
-    INTEGER_FIELDS = (u'FinancialYearEndDay', u'FinancialYearEndMonth')
-    TIMEZONE_FIELDS = (u'Timezone',)
-    COUNTRY_FIELDS = (u'CountryCode',)
-    CURRENCY_FIELDS = (u'BaseCurrency',)
     PLURAL_EXCEPTIONS = {'Addresse': 'Address'}
     
     # Fields that should not be sent to the server.
     NO_SEND_FIELDS = (u'UpdatedDateUTC',)
-    # Currently experimenting with just converting all things ending in 'ID'
-    # to UUID values.
-    GUID_FIELDS = (u'EmployeeID',)
     
     def __init__(self, name, oauth, url):
         self.oauth = oauth
@@ -66,79 +86,6 @@ class Manager(object):
         for method_name in self.DECORATED_METHODS:
             method = getattr(self, method_name)
             setattr(self, method_name, self._get_data(method, method_name))
-
-    def walk_dom(self, dom):
-        tree_list = tuple()
-        for node in dom.childNodes:
-            tagName = getattr(node, 'tagName', None)
-            if tagName:
-                tree_list += (tagName, self.walk_dom(node),)
-            else:
-                data = node.data.strip()
-                if data:
-                    tree_list += (node.data.strip(),)
-        return tree_list
-
-    def convert_to_dict(self, deep_list):
-        out = {}
-
-        if len(deep_list) > 2:
-            lists = [l for l in deep_list if isinstance(l, tuple)]
-            keys = [l for l in deep_list if isinstance(l, unicode)]
-
-            if len(keys) > 1 and len(set(keys)) == 1:
-                # This is a collection... all of the keys are the same.
-                return [self.convert_to_dict(data) for data in lists]
-
-            for key, data in zip(keys, lists):
-                if not data:
-                    # Skip things that are empty tags?
-                    # Or set them to None?
-                    out[key] = None
-                    continue
-
-                if len(data) == 1:
-                    # we're setting a value
-                    # check to see if we need to apply any special
-                    # formatting to the value
-                    val = data[0]
-                    if key in self.DECIMAL_FIELDS:
-                        val = Decimal(val)
-                    elif key in self.BOOLEAN_FIELDS:
-                        val = True if val.lower() == 'true' else False
-                    elif key in self.DATETIME_FIELDS:
-                        val = parse(val)
-                    elif key in self.DATE_FIELDS:
-                        val = parse(val).date()
-                    elif key in self.GUID_FIELDS or key.endswith('ID'):
-                        val = UUID(val)
-                    elif key in self.INTEGER_FIELDS:
-                        val = int(val)
-                    
-                    data = val
-                else:
-                    # We have a deeper data structure, that we need
-                    # to recursively process.
-                    data = self.convert_to_dict(data)
-                    # Which may itself be a collection. Quick, check!
-                    if isinstance(data, dict) and isplural(key) and [singular(key)] == data.keys():
-                        data = [data[singular(key)]]
-
-                out[key] = data
-
-        elif len(deep_list) == 2:
-            key = deep_list[0]
-            data = self.convert_to_dict(deep_list[1])
-
-            # If our key is repeated in our child object, but in singular
-            # form (and is the only key), then this object is a collection.
-            if isplural(key) and [singular(key)] == data.keys():
-                data = [data[singular(key)]]
-
-            out[key] = data
-        else:
-            out = deep_list[0]
-        return out
 
     def dict_to_xml(self, root_elm, data):
         if not isinstance(data, dict):
@@ -188,7 +135,10 @@ class Manager(object):
         return root_elm
 
     def _prepare_data_for_save(self, data):
-        root_elm = Element(self.name)
+        if self.name == self.singular:
+            root_elm = Element(self.name + 's')
+        else:
+            root_elm = Element(self.name)
         
         if not isinstance(data, (list, tuple)):
             data = [data]
@@ -199,42 +149,45 @@ class Manager(object):
 
         return tostring(root_elm)
 
-    def _get_results(self, data):
-        response = data[u'Response']
+    def _get_results(self, response):
         # Need custom handling for Organisation, as it returns
         #   {'Organisations':{'Organisation': {}}}
         # ie, the pluralised name is in the response.
         if self.name + 's' in response:
-            response = response[self.name + 's']
+            return response[self.name + 's'][0]
         
-        result = response.get(self.name, {})
-        
-        if isinstance(result, dict) and self.singular in result:
-            return result[self.singular]
-
-        return result
+        return response[self.name]
 
 
     def _get_data(self, func, name):
         def wrapper(*args, **kwargs):
             uri, method, body, headers = func(*args, **kwargs)
-            if body and 'xml' in body:
-                body = body['xml']
-                if not headers:
-                    headers = {}
-                headers['Content-Type'] = 'application/xml'
+            if not headers:
+                headers = {}
+            headers['Accept'] = 'application/json'
             import time
             start = time.time()
             response = getattr(requests, method)(uri, data=body, headers=headers, auth=self.oauth)
             finish = time.time()
             print "Request to %s took %s" % (uri, finish-start)
             
+            # There is a bug with the Xero API when asking for JSON, and
+            # when there is a validation error. So, we re-run the request
+            # asking for XML, and deal with the validation error later.
+            if response.status_code == 500:
+                if response.request.headers.get('Accept', None) == 'application/json':
+                    print "****\n\nRe-running request!"
+                    response = getattr(requests, method)(uri, data=body, headers={}, auth=self.oauth)
+
             if response.status_code == 200:
                 if response.headers['content-type'] == 'application/pdf':
                     return response.text
-                # parseString takes byte content, not unicode.
-                dom = parseString(response.text.encode(response.encoding))
-                data = self.convert_to_dict(self.walk_dom(dom))
+                
+                content = response.text.encode(response.encoding)
+                
+                # Can't use response.json(), we want to convert dates.
+                data = json.loads(content, object_hook=object_hook)
+                
                 results = self._get_results(data)
 
                 if name == 'get':
@@ -313,11 +266,13 @@ class Manager(object):
                 del kwargs['since']
 
             def get_filter_params():
-                if key in self.BOOLEAN_FIELDS:
-                    return 'true' if kwargs[key] else 'false'
-                elif key in self.DATETIME_FIELDS:
-                    return kwargs[key].isoformat()
-                elif key in self.GUID_FIELDS or key.endswith('ID') or isinstance(kwargs[key], UUID):
+                if isinstance(kwargs[key], bool):
+                    return str(kwargs[key]).lower()
+                elif isinstance(kwargs[key], datetime):
+                    return kwargs[key].strftime('DateTime(%Y, %m, %d, %H, %M, %S)')
+                elif isinstance(kwargs[key], date):
+                    return kwargs[key].strftime('DateTime(%Y, %m, %d)')
+                elif key.endswith('ID') or isinstance(kwargs[key], UUID):
                     return 'Guid("%s")' % kwargs[key]
                 else:
                     return '"%s"' % str(kwargs[key])
