@@ -10,7 +10,6 @@ import urllib
 
 import requests
 
-from .constants import XERO_API_URL
 from .exceptions import *
 
 def isplural(word):
