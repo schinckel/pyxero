@@ -86,6 +86,23 @@ will be called with three GET arguments:
 The verifier can then be used to verify the credentials, as with the manual
 process.
 
+Public Applications with access to the Payroll API
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To get access to the `Payroll API`_, your user must:
+
+  * Be an Australian Organisation
+  * Have completed all of the required payroll setup steps
+  * Have payroll administrator access
+  
+And you must:
+
+  * request the desired endpoints using the scope argument to your credentials object.
+  
+For instance, to request access to the `Employees` and `PayItems`, your credentials would look like::
+
+  >>> credentials = PublicCredentials(<consumer_key>, <consumer_secret>, scope=['payroll.employees','payroll.payitems'])
+
 Reconstructing Public credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -192,7 +209,7 @@ For example, to deal with contacts::
     # Create a new object
     >>> xero.contacts.put({...contact info...})
 
-    # Create a new object
+    # Create several new objects
     >>> xero.contacts.put([{...contact info...}, {...contact info...}, {...contact info...}])
 
     # Save an update to an existing object
@@ -229,7 +246,10 @@ The Xero Payroll API (only available to Australian organisations) has a similar 
 
 There are some differences to the Payroll API:
 
- 1. You must explicitly declare which objects you will be accessing during the session.
+ * You must explicitly declare which objects you will be accessing during the session.
+ * The API is paginated: only the first 100 objects will be fetched, you need to specifically ask for the next page::
+
+   >>> xero.employees.filter(page=2)
 
 .. _Xero: http://developer.xero.com
 .. _requests: http://python-requests.org
@@ -241,12 +261,13 @@ There are some differences to the Payroll API:
 .. _XeroPy: https://github.com/fatbox/XeroPy
 .. _register your public application with Xero: http://developer.xero.com/api-overview/public-applications/
 .. _register your private application with Xero: http://developer.xero.com/api-overview/private-applications/
+.. _Payroll API: http://developer.xero.com/documentation/payroll-api/overview/
 
 Contributing
 ------------
 
 If you're going to run the PyXero test suite, you need to add the following
-dependencies to your environment:
+dependencies to your environment::
 
     mock >= 1.0
 
@@ -254,7 +275,7 @@ These aren't included in the formal dependencies because they aren't required
 for normal operation of PyXero. They're only required for testing purposes.
 
 Once you've installed these dependencies, you can run the test suite by
-running the following from the root directory of the project:
+running the following from the root directory of the project::
 
     $ python setup.py test
 
