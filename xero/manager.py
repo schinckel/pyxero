@@ -173,6 +173,8 @@ class Manager(object):
             # There is a bug with the Xero API when asking for JSON, and
             # when there is a validation error. So, we re-run the request
             # asking for XML, and deal with the validation error later.
+            # We can still get rid of the dom-walking code, as we don't need
+            # to create the dict structure from error messages.
             if response.status_code == 500:
                 if response.request.headers.get('Accept', None) == 'application/json':
                     print "****\n\nRe-running request!"
@@ -257,13 +259,10 @@ class Manager(object):
     def filter(self, **kwargs):
         headers = None
         page = kwargs.pop('page', None)
+        since = kwargs.pop('since', None)
+        
         uri = '/'.join([self.url, self.name])
         if kwargs:
-            if 'since' in kwargs:
-                val = kwargs['since']
-                headers = self.prepare_filtering_date(val)
-                del kwargs['since']
-
             def get_filter_params():
                 if isinstance(kwargs[key], bool):
                     return str(kwargs[key]).lower()
@@ -299,9 +298,12 @@ class Manager(object):
         
         if page:
             if '?' in uri:
-                uri += '&page=%s' % page
+                uri += '&page=%s' % int(page)
             else:
-                uri += '?page=%s' % page
+                uri += '?page=%s' % int(page)
+        
+        if since:
+            headers = self.prepare_filtering_date(since)
         
         return uri, 'get', None, headers
 
