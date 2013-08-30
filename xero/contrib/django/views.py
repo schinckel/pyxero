@@ -1,3 +1,5 @@
+import logging
+
 from django.core.urlresolvers import reverse
 from django.shortcuts import redirect, render
 from django import forms
@@ -8,6 +10,8 @@ from xero.exceptions import XeroUnauthorized, XeroBadRequest
 
 from .signals import xero_authorised
 
+logger = logging.getLogger('pyxero')
+
 # Set CONSUMER_KEY, CONSUMER_SECRET, PAYROLL_SCOPE, CALLBACK_URL
 config = {
     'CONSUMER_KEY': None,
@@ -16,11 +20,13 @@ config = {
 }
 
 # Would like a better method for doing this...
-def xero_config(consumer_key, consumer_secret, payroll_scope=None):
+def xero_config(consumer_key, consumer_secret, callback_name=None, payroll_scope=None):
     config['CONSUMER_SECRET'] = consumer_secret
     config['CONSUMER_KEY'] = consumer_key
     if payroll_scope is not None:
         config['PAYROLL_SCOPE'] = payroll_scope
+    if callback_name is not None:
+        config['CALLBACK_NAME'] = callback_name
 
 
 class XeroOauthCallbackForm(forms.Form):
@@ -50,26 +56,31 @@ def xero_oauth_callback(request):
     
     if form.is_valid():
         credentials = PublicCredentials(**request.session['xero_credentials'])
-        credentials.verify(form.cleaned_data['oauth_verifier'])
-        request.session['xero_credentials'] = credentials.state
+        try:
+            credentials.verify(form.cleaned_data['oauth_verifier'])
+        except XeroUnauthorized as exc:
+            logger.error('Unable to authorise')
+            # Display a nicer error?
+        else:
+            request.session['xero_credentials'] = credentials.state
         
-        api = Xero(credentials)
-        # self.request.session['xero_organisation'] = api.organisation.all()
+            api = Xero(credentials)
+            # self.request.session['xero_organisation'] = api.organisation.all()
         
-        xero_authorised.send(
-            sender=request,
-            api=api,
-            credentials=credentials
-        )
+            xero_authorised.send(
+                sender=request,
+                api=api,
+                credentials=credentials
+            )
         
     return redirect(request.session.pop('xero_return_url'))
 
 
-def reauthorise(self, request):
+def reauthorise(request):
     credentials = PublicCredentials(
         config['CONSUMER_KEY'], 
         config['CONSUMER_SECRET'],
-        callback_uri=request.build_absolute_uri(reverse(xero_oauth_callback)),
+        callback_uri=request.build_absolute_uri(reverse(config['CALLBACK_NAME'])),
         scope=config['PAYROLL_SCOPE']
     )
     
@@ -100,7 +111,8 @@ class XeroMixin(object):
     This also sets a property on the view class instance, called
     api, which contains a Xero() instance, with the verified credentials.
     """
-    
+    def reauthorise(self, request=None):
+        return reauthorise(request or self.request)
 
     def dispatch(self, request, *args, **kwargs):
         # We can't just pop it and continue, as that would then deauth when
@@ -121,3 +133,5 @@ class XeroMixin(object):
             return super(XeroMixin, self).dispatch(request, *args, **kwargs)
         except XeroUnauthorized:
             return reauthorise(request)
+        
+        # Handle other errors?

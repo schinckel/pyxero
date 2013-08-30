@@ -5,12 +5,15 @@ from uuid import UUID
 from xml.dom.minidom import parseString
 from xml.etree.ElementTree import tostring, SubElement, Element
 import json
+import logging
 import re
 import urllib
 
 import requests
 
 from .exceptions import *
+
+logger = logging.getLogger('pyxero')
 
 def isplural(word):
     return word[-1].lower() == 's'
@@ -168,18 +171,25 @@ class Manager(object):
             start = time.time()
             response = getattr(requests, method)(uri, data=body, headers=headers, auth=self.oauth)
             finish = time.time()
-            print "Request to %s took %s" % (uri, finish-start)
+            logger.debug("Request to %s took %s", uri, finish-start)
             
             # There is a bug with the Xero API when asking for JSON, and
             # when there is a validation error. So, we re-run the request
             # asking for XML, and deal with the validation error later.
             # We can still get rid of the dom-walking code, as we don't need
             # to create the dict structure from error messages.
+            # See https://community.xero.com/developer/discussion/26001/
+            # for details.
             if response.status_code == 500:
                 if response.request.headers.get('Accept', None) == 'application/json':
-                    print "****\n\nRe-running request!"
+                    logger.debug("****\n\nRe-running request!")
+                    start = time.time()
                     response = getattr(requests, method)(uri, data=body, headers={}, auth=self.oauth)
-
+                    finish = time.time()
+                    logger.debug("Request to %s took %s", uri, finish-start)
+            
+            logger.debug(response.text)
+            
             if response.status_code == 200:
                 if response.headers['content-type'] == 'application/pdf':
                     return response.text
