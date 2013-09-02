@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.shortcuts import redirect, render
 from django import forms
@@ -12,21 +13,14 @@ from .signals import xero_authorised
 
 logger = logging.getLogger('pyxero')
 
+
 # Set CONSUMER_KEY, CONSUMER_SECRET, PAYROLL_SCOPE, CALLBACK_URL
 config = {
-    'CONSUMER_KEY': None,
-    'CONSUMER_SECRET': None,
-    'PAYROLL_SCOPE': None
+    'CONSUMER_KEY': settings.XERO_CONSUMER_KEY,
+    'CONSUMER_SECRET': settings.XERO_CONSUMER_SECRET,
+    'SCOPE': getattr(settings, 'XERO_SCOPE', []),
+    'CALLBACK_NAME': getattr(settings, 'XERO_CALLBACK_NAME', None)
 }
-
-# Would like a better method for doing this...
-def xero_config(consumer_key, consumer_secret, callback_name=None, payroll_scope=None):
-    config['CONSUMER_SECRET'] = consumer_secret
-    config['CONSUMER_KEY'] = consumer_key
-    if payroll_scope is not None:
-        config['PAYROLL_SCOPE'] = payroll_scope
-    if callback_name is not None:
-        config['CALLBACK_NAME'] = callback_name
 
 
 class XeroOauthCallbackForm(forms.Form):
@@ -81,7 +75,7 @@ def reauthorise(request):
         config['CONSUMER_KEY'], 
         config['CONSUMER_SECRET'],
         callback_uri=request.build_absolute_uri(reverse(config['CALLBACK_NAME'])),
-        scope=config['PAYROLL_SCOPE']
+        scope=config['SCOPE']
     )
     
     request.session['xero_credentials'] = credentials.state
