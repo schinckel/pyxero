@@ -24,7 +24,7 @@ def singular(word):
     return word
 
 DATE = re.compile(
-    r'^(\/Date\((?P<timestamp>\d+)((?P<offset_h>[-+]\d\d)(?P<offset_m>\d\d))?\)\/)'
+    r'^(\/Date\((?P<timestamp>-?\d+)((?P<offset_h>[-+]\d\d)(?P<offset_m>\d\d))?\)\/)'
     r'|'
     r'((?P<year>\d{4})-(?P<month>[0-2]\d)-0?(?P<day>[0-3]\d)'
     r'T'
@@ -33,7 +33,8 @@ DATE = re.compile(
 
 def parse_date(string, force_datetime=False):
     matches = DATE.match(string)
-    if not matches: return None
+    if not matches:
+        return None
     
     values = dict([
         (
