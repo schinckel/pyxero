@@ -1,8 +1,10 @@
 import logging
 
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.shortcuts import redirect, render
+from django.utils.decorators import method_decorator
 from django import forms
 
 from xero.api import Xero
@@ -32,6 +34,7 @@ class XeroOauthCallbackForm(forms.Form):
     oauth_verifier = forms.CharField()
 
 
+@login_required
 def xero_oauth_callback(request):
     """
     A view that will handle the callback from the Xero server on
@@ -108,6 +111,7 @@ class XeroMixin(object):
     def reauthorise(self, request=None):
         return reauthorise(request or self.request)
 
+    @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
         # We can't just pop it and continue, as that would then deauth when
         # we came back from Xero.
