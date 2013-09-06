@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from django.conf import settings
@@ -60,7 +61,7 @@ def xero_oauth_callback(request):
             # Display a nicer error?
         else:
             request.session['xero_credentials'] = credentials.state
-        
+            
             api = Xero(credentials)
             # self.request.session['xero_organisation'] = api.organisation.all()
         
@@ -121,7 +122,7 @@ class XeroMixin(object):
         
         credentials = request.session.get('xero_credentials', None)
         
-        if not credentials or not credentials['verified']:
+        if not credentials or not credentials['verified'] or credentials['expiry'] < datetime.datetime.now():
             return reauthorise(request)
         
         credentials = PublicCredentials(**credentials)

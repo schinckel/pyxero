@@ -1,8 +1,10 @@
+import datetime
+from urlparse import parse_qs
+from urllib import urlencode
+
 import requests
 from requests_oauthlib import OAuth1
 from oauthlib.oauth1 import SIGNATURE_RSA, SIGNATURE_TYPE_AUTH_HEADER
-from urlparse import parse_qs
-from urllib import urlencode
 
 from .constants import REQUEST_TOKEN_URL, AUTHORIZE_URL, ACCESS_TOKEN_URL
 from .exceptions import *
@@ -82,7 +84,7 @@ class PublicCredentials(object):
     def __init__(self, consumer_key, consumer_secret,
                  callback_uri=None, verified=False,
                  oauth_token=None, oauth_token_secret=None,
-                 scope=None):
+                 scope=None, expiry=None):
         """Construct the auth instance.
 
         Must provide the consumer key and secret.
@@ -103,6 +105,7 @@ class PublicCredentials(object):
         # else:
         self.scope_list = list(scope or [])
         self._oauth = None
+        self.expiry = expiry
 
         if oauth_token and oauth_token_secret:
             if self.verified:
@@ -110,7 +113,6 @@ class PublicCredentials(object):
                 # credentials. Store the oauth_token and secret
                 # and initialize OAuth around those
                 self._init_oauth(oauth_token, oauth_token_secret)
-
             else:
                 # If provided, we are reconstructing an initalized
                 # (but non-verified) set of public credentials.
@@ -184,7 +186,8 @@ class PublicCredentials(object):
             (attr, getattr(self, attr))
             for attr in (
                 'consumer_key', 'consumer_secret', 'callback_uri',
-                'verified', 'oauth_token', 'oauth_token_secret'
+                'verified', 'oauth_token', 'oauth_token_secret',
+                'expiry'
             )
             if getattr(self, attr) is not None
         )
@@ -211,6 +214,7 @@ class PublicCredentials(object):
                 credentials.get('oauth_token')[0],
                 credentials.get('oauth_token_secret')[0]
             )
+            self.expiry = datetime.datetime.now() + datetime.timedelta(minutes=30)
         elif response.status_code == 400:
             raise XeroBadRequest(response)
 
