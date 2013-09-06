@@ -209,6 +209,12 @@ class Manager(object):
                         if len(results) == 1:
                             return results[0]
                         raise Exception('Multiple objects returned')
+                elif name == 'all':
+                    while not len(results) % 100:
+                        batch = self.filter(page=len(results)/100 + 1)
+                        if not len(batch):
+                            break
+                        results.extend(batch)
 
                 return results
 
