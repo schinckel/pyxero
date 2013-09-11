@@ -103,7 +103,7 @@ class PublicCredentials(object):
         #     from .api import Xero
         #     self.scope_list = ['payroll.%s' % s.lower() for s in Xero.PAYROLL_OBJECT_LIST]
         # else:
-        self.scope_list = list(scope or [])
+        self.scope = list(scope or [])
         self._oauth = None
         self.expiry = expiry
 
@@ -187,7 +187,7 @@ class PublicCredentials(object):
             for attr in (
                 'consumer_key', 'consumer_secret', 'callback_uri',
                 'verified', 'oauth_token', 'oauth_token_secret',
-                'expiry'
+                'expiry', 'scope'
             )
             if getattr(self, attr) is not None
         )
@@ -254,13 +254,11 @@ class PublicCredentials(object):
             'oauth_token': self.oauth_token,
         }
         if self.callback_uri:
-            data['oauth_callback'] = self.callback_uri
-        
+            data['oauth_callback'] = self.callback_uri        
+        if self.scope:
+            data['scope'] = ','.join(self.scope)
+
         url = AUTHORIZE_URL + '?' + urlencode(data)
-        
-        if self.scope_list:
-            # Can't urlencode this, it fails.
-            url += '&scope=' + ','.join(self.scope_list)
         
         return url
         
