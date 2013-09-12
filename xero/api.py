@@ -31,7 +31,7 @@ class Xero(object):
     @property
     def links(self):
         if self._organisation is None:
-            self._organisation = self.organisations.all()[0]
+            self._organisation = self.organisation.all()
         
         return {
             'dashboard': 'https://my.xero.com//Action/OrganisationLogin/%(ShortCode)s' % self._organisation,
