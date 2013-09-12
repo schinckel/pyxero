@@ -9,7 +9,8 @@ class Xero(object):
                    u'Payments', u'TaxRates', u'TrackingCategories')
     PAYROLL_OBJECT_LIST = (u'Employees', u'LeaveApplications', u'PayItems',
                            u'PayrollCalendars', u'PayRuns', u'Payslip',
-                           u'SuperFunds', u'SuperFundProducts', u'Timesheets')
+                           u'Settings', u'SuperFunds', u'SuperFundProducts', 
+                           u'Timesheets')
 
     def __init__(self, credentials):
         # Iterate through the list of objects we support, for
