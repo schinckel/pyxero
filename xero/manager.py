@@ -74,6 +74,10 @@ class Manager(object):
     # Fields that should not be sent to the server.
     NO_SEND_FIELDS = (u'UpdatedDateUTC',)
     
+    # Objects that should not auto-wrap in a collection of the same
+    # name as the root element.
+    NO_WRAP_ROOT = (u'PayItems',)
+    
     def __init__(self, name, oauth, url):
         self.oauth = oauth
         self.name = name
@@ -123,6 +127,8 @@ class Manager(object):
                         # Need to manually convert to str objects.
                         if isinstance(d, Decimal):
                             d = str(d)
+                        elif isinstance(d, bool):
+                            d = str(d).lower()
                         self.dict_to_xml(SubElement(elm, plural_name), d)
 
                 # key name isn't a plural. Just insert the content
@@ -133,6 +139,8 @@ class Manager(object):
 
             # Normal element - just inser the data.
             else:
+                if isinstance(sub_data, bool):
+                    sub_data = str(sub_data).lower()
                 elm.text = str(sub_data)
 
         return root_elm
@@ -143,12 +151,18 @@ class Manager(object):
         else:
             root_elm = Element(self.name)
         
-        if not isinstance(data, (list, tuple)):
-            data = [data]
+        # Certain elements don't fit the pattern of:
+        #    <Elements><Element>...</Element></Elements>
+        
+        if self.name in self.NO_WRAP_ROOT:
+            self.dict_to_xml(root_elm, data)
+        else:
+            if not isinstance(data, (list, tuple)):
+                data = [data]
 
-        for d in data:
-            sub_elm = SubElement(root_elm, self.singular)
-            self.dict_to_xml(sub_elm, d)
+            for d in data:
+                sub_elm = SubElement(root_elm, self.singular)
+                self.dict_to_xml(sub_elm, d)
 
         return tostring(root_elm)
 
