@@ -204,7 +204,7 @@ class Manager(object):
                     logger.debug("Request to %s took %s", uri, finish-start)
             
             logger.debug(response.text)
-            
+             
             if response.status_code == 200:
                 if response.headers['content-type'] == 'application/pdf':
                     return response.text
