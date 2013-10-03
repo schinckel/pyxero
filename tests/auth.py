@@ -25,6 +25,7 @@ class PublicCredentialsTest(unittest.TestCase):
             'consumer_secret': 'secret',
             'oauth_token': 'token',
             'oauth_token_secret': 'token_secret',
+            'scope': [],
             'verified': False
         })
 
@@ -54,6 +55,7 @@ class PublicCredentialsTest(unittest.TestCase):
             'consumer_secret': 'secret',
             'oauth_token': 'token',
             'oauth_token_secret': 'token_secret',
+            'scope': [],
             'verified': False
         })
 
@@ -76,6 +78,7 @@ class PublicCredentialsTest(unittest.TestCase):
             'consumer_secret': 'secret',
             'oauth_token': 'validated_token',
             'oauth_token_secret': 'validated_token_secret',
+            'scope': [],
             'verified': True
         })
 
@@ -116,11 +119,14 @@ class PublicCredentialsTest(unittest.TestCase):
         # A HTTP request was made
         self.assertTrue(r_post.called)
 
-        self.assertEqual(credentials.state, {
+        state = credentials.state
+        state.pop('expiry')
+        self.assertEqual(state, {
             'consumer_key': 'key',
             'consumer_secret': 'secret',
             'oauth_token': 'verified_token',
             'oauth_token_secret': 'verified_token_secret',
+            'scope': [],
             'verified': True
         })
 
