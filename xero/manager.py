@@ -5,12 +5,15 @@ from uuid import UUID
 from xml.dom.minidom import parseString
 from xml.etree.ElementTree import tostring, SubElement, Element
 import json
+import logging
 import re
 import urllib
 
 import requests
 
 from .exceptions import *
+
+logger = logging.getLogger('pyxero')
 
 def isplural(word):
     return word[-1].lower() == 's'
@@ -21,7 +24,7 @@ def singular(word):
     return word
 
 DATE = re.compile(
-    r'^(\/Date\((?P<timestamp>\d+)((?P<offset_h>[-+]\d\d)(?P<offset_m>\d\d))?\)\/)'
+    r'^(\/Date\((?P<timestamp>-?\d+)((?P<offset_h>[-+]\d\d)(?P<offset_m>\d\d))?\)\/)'
     r'|'
     r'((?P<year>\d{4})-(?P<month>[0-2]\d)-0?(?P<day>[0-3]\d)'
     r'T'
@@ -30,7 +33,8 @@ DATE = re.compile(
 
 def parse_date(string, force_datetime=False):
     matches = DATE.match(string)
-    if not matches: return None
+    if not matches:
+        return None
     
     values = dict([
         (
@@ -73,6 +77,10 @@ class Manager(object):
     
     # Fields that should not be sent to the server.
     NO_SEND_FIELDS = (u'UpdatedDateUTC',)
+    
+    # Objects that should not auto-wrap in a collection of the same
+    # name as the root element.
+    NO_WRAP_ROOT = (u'PayItems',)
     
     def __init__(self, name, oauth, url):
         self.oauth = oauth
@@ -123,6 +131,8 @@ class Manager(object):
                         # Need to manually convert to str objects.
                         if isinstance(d, Decimal):
                             d = str(d)
+                        elif isinstance(d, bool):
+                            d = str(d).lower()
                         self.dict_to_xml(SubElement(elm, plural_name), d)
 
                 # key name isn't a plural. Just insert the content
@@ -133,6 +143,8 @@ class Manager(object):
 
             # Normal element - just inser the data.
             else:
+                if isinstance(sub_data, bool):
+                    sub_data = str(sub_data).lower()
                 elm.text = str(sub_data)
 
         return root_elm
@@ -143,12 +155,18 @@ class Manager(object):
         else:
             root_elm = Element(self.name)
         
-        if not isinstance(data, (list, tuple)):
-            data = [data]
+        # Certain elements don't fit the pattern of:
+        #    <Elements><Element>...</Element></Elements>
+        
+        if self.name in self.NO_WRAP_ROOT:
+            self.dict_to_xml(root_elm, data)
+        else:
+            if not isinstance(data, (list, tuple)):
+                data = [data]
 
-        for d in data:
-            sub_elm = SubElement(root_elm, self.singular)
-            self.dict_to_xml(sub_elm, d)
+            for d in data:
+                sub_elm = SubElement(root_elm, self.singular)
+                self.dict_to_xml(sub_elm, d)
 
         return tostring(root_elm)
 
@@ -172,18 +190,25 @@ class Manager(object):
             start = time.time()
             response = getattr(requests, method)(uri, data=body, headers=headers, auth=self.oauth)
             finish = time.time()
-            print "Request to %s took %s" % (uri, finish-start)
+            logger.debug("Request to %s took %s", uri, finish-start)
             
             # There is a bug with the Xero API when asking for JSON, and
             # when there is a validation error. So, we re-run the request
             # asking for XML, and deal with the validation error later.
             # We can still get rid of the dom-walking code, as we don't need
             # to create the dict structure from error messages.
+            # See https://community.xero.com/developer/discussion/26001/
+            # for details.
             if response.status_code == 500:
                 if response.request.headers.get('Accept', None) == 'application/json':
-                    print "****\n\nRe-running request!"
+                    logger.debug("****\n\nRe-running request!")
+                    start = time.time()
                     response = getattr(requests, method)(uri, data=body, headers={}, auth=self.oauth)
-
+                    finish = time.time()
+                    logger.debug("Request to %s took %s", uri, finish-start)
+            
+            logger.debug(response.text)
+             
             if response.status_code == 200:
                 if response.headers['content-type'] == 'application/pdf':
                     return response.text
@@ -202,6 +227,12 @@ class Manager(object):
                         if len(results) == 1:
                             return results[0]
                         raise Exception('Multiple objects returned')
+                elif name == 'all':
+                    while not len(results) % 100:
+                        batch = self.filter(page=len(results)/100 + 1)
+                        if not len(batch):
+                            break
+                        results.extend(batch)
 
                 return results
 

@@ -9,7 +9,8 @@ class Xero(object):
                    u'Payments', u'TaxRates', u'TrackingCategories')
     PAYROLL_OBJECT_LIST = (u'Employees', u'LeaveApplications', u'PayItems',
                            u'PayrollCalendars', u'PayRuns', u'Payslip',
-                           u'SuperFunds', u'SuperFundProducts', u'Timesheets')
+                           u'Settings', u'SuperFunds', u'SuperFundProducts', 
+                           u'Timesheets')
 
     def __init__(self, credentials):
         # Iterate through the list of objects we support, for
@@ -30,7 +31,7 @@ class Xero(object):
     @property
     def links(self):
         if self._organisation is None:
-            self._organisation = self.organisations.all()[0]
+            self._organisation = self.organisation.all()
         
         return {
             'dashboard': 'https://my.xero.com//Action/OrganisationLogin/%(ShortCode)s' % self._organisation,

@@ -49,17 +49,11 @@ class ManagerTest(unittest.TestCase):
         }
         # Convert invoice to XML
         xml = xero.invoices._prepare_data_for_save(original)
-
-        # Convert back into a dictionary.
-        dom = parseString(xml)
-        tuple_form = xero.invoices.walk_dom(dom)
-        reproduced = xero.invoices.convert_to_dict(tuple_form)
-
+        
         # Original should match reproduced version, embedded inside a parent key
-        self.assertEqual([original], reproduced['Invoices'])
+        self.assertEqual("<Invoices><Invoice><InvoiceNumber>X0001</InvoiceNumber><Contact><ContactID>3e776c4b-ea9e-4bb1-96be-6b0c7a71a37f</ContactID></Contact><Date>2013-02-01</Date><LineItems><LineItem><AccountCode>200</AccountCode><UnitAmount>100.00</UnitAmount><Description>Line item 1</Description><Quantity>1.0</Quantity></LineItem><LineItem><AccountCode>200</AccountCode><UnitAmount>750.00</UnitAmount><Description>Line item 2</Description><Quantity>2.0</Quantity></LineItem></LineItems><Type>ACCREC</Type><DueDate>2013-02-15</DueDate></Invoice></Invoices>", xml)
 
     @patch('requests.get')
-    @unittest.expectedFailure
     def test_unicode_content(self, r_get):
         "Unicode data can be handled in responses."
         # Verified response from Xero API.
@@ -68,60 +62,74 @@ class ManagerTest(unittest.TestCase):
         # to "John Sürname"
         
         # This fails because we now ask for (and only parse) JSON.
-        r_get.return_value = Mock(status_code=200, headers={'content-type': 'text/xml; charset=utf-8'}, encoding='utf-8', text="""<Response xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <Id>dbb54b2b-8fdb-4277-ad03-2df50ce760fa</Id>
-  <Status>OK</Status>
-  <ProviderName>TradesCloud</ProviderName>
-  <DateTimeUTC>2013-05-31T06:07:35.3732465Z</DateTimeUTC>
-  <Contacts>
-    <Contact>
-      <ContactID>755f1475-d255-43a8-bedc-5ea7fd26c71f</ContactID>
-      <ContactStatus>ACTIVE</ContactStatus>
-      <Name>Yarra Transport</Name>
-      <FirstName>John</FirstName>
-      <LastName>S\xfcrname</LastName>
-      <EmailAddress>rayong@yarratransport.co</EmailAddress>
-      <Addresses>
-        <Address>
-          <AddressType>STREET</AddressType>
-        </Address>
-        <Address>
-          <AddressType>POBOX</AddressType>
-          <AddressLine1>P O Box 5678</AddressLine1>
-          <City>Melbourne</City>
-          <PostalCode>3133</PostalCode>
-        </Address>
-      </Addresses>
-      <Phones>
-        <Phone>
-          <PhoneType>DDI</PhoneType>
-        </Phone>
-        <Phone>
-          <PhoneType>DEFAULT</PhoneType>
-          <PhoneNumber>12344321</PhoneNumber>
-          <PhoneAreaCode>03</PhoneAreaCode>
-        </Phone>
-        <Phone>
-          <PhoneType>FAX</PhoneType>
-        </Phone>
-        <Phone>
-          <PhoneType>MOBILE</PhoneType>
-        </Phone>
-      </Phones>
-      <UpdatedDateUTC>2013-05-31T06:04:20.78</UpdatedDateUTC>
-      <ContactGroups>
-        <ContactGroup>
-          <ContactGroupID>26fcca8d-a03b-4968-a80a-a463d5bf30ee</ContactGroupID>
-          <Name>Support Clients (monthly)</Name>
-          <Status>ACTIVE</Status>
-        </ContactGroup>
-      </ContactGroups>
-      <IsSupplier>false</IsSupplier>
-      <IsCustomer>true</IsCustomer>
-    </Contact>
-  </Contacts>
-</Response>
-""")
+        r_get.return_value = Mock(status_code=200, 
+            headers={'content-type': 'text/xml; charset=utf-8'},
+            encoding='utf-8',
+            text="""{
+  "Id": "7dcf9f56-ce86-445b-b884-2984fcf4c3f7",
+  "Status": "OK",
+  "ProviderName": "FooBarIncorporated",
+  "DateTimeUTC": "\/Date(1380789260633)\/",
+  "Contacts": [
+    {
+      "ContactID": "755f1475-d255-43a8-bedc-5ea7fd26c71f",
+      "ContactStatus": "ACTIVE",
+      "Name": "Yarra Transport",
+      "FirstName": "John",
+      "LastName": "Sürname",
+      "EmailAddress": "",
+      "BankAccountDetails": "",
+      "Addresses": [
+        {
+          "AddressType": "STREET",
+          "City": "",
+          "Region": "",
+          "PostalCode": "",
+          "Country": "",
+          "AttentionTo": ""
+        },
+        {
+          "AddressType": "POBOX",
+          "City": "",
+          "Region": "",
+          "PostalCode": "",
+          "Country": "",
+          "AttentionTo": ""
+        }
+      ],
+      "Phones": [
+        {
+          "PhoneType": "DDI",
+          "PhoneNumber": "",
+          "PhoneAreaCode": "",
+          "PhoneCountryCode": ""
+        },
+        {
+          "PhoneType": "DEFAULT",
+          "PhoneNumber": "",
+          "PhoneAreaCode": "",
+          "PhoneCountryCode": ""
+        },
+        {
+          "PhoneType": "FAX",
+          "PhoneNumber": "",
+          "PhoneAreaCode": "",
+          "PhoneCountryCode": ""
+        },
+        {
+          "PhoneType": "MOBILE",
+          "PhoneNumber": "",
+          "PhoneAreaCode": "",
+          "PhoneCountryCode": ""
+        }
+      ],
+      "UpdatedDateUTC": "\/Date(1380742397027+1300)\/",
+      "ContactGroups": [],
+      "IsSupplier": false,
+      "IsCustomer": false
+    }
+  ]
+}""")
 
         credentials = Mock()
         xero = Xero(credentials)

@@ -1,5 +1,11 @@
+import datetime
+import logging
+
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.shortcuts import redirect, render
+from django.utils.decorators import method_decorator
 from django import forms
 
 from xero.api import Xero
@@ -8,19 +14,16 @@ from xero.exceptions import XeroUnauthorized, XeroBadRequest
 
 from .signals import xero_authorised
 
+logger = logging.getLogger('pyxero')
+
+
 # Set CONSUMER_KEY, CONSUMER_SECRET, PAYROLL_SCOPE, CALLBACK_URL
 config = {
-    'CONSUMER_KEY': None,
-    'CONSUMER_SECRET': None,
-    'PAYROLL_SCOPE': None
+    'CONSUMER_KEY': settings.XERO_CONSUMER_KEY,
+    'CONSUMER_SECRET': settings.XERO_CONSUMER_SECRET,
+    'SCOPE': getattr(settings, 'XERO_SCOPE', []),
+    'CALLBACK_NAME': getattr(settings, 'XERO_CALLBACK_NAME', None)
 }
-
-# Would like a better method for doing this...
-def xero_config(consumer_key, consumer_secret, payroll_scope=None):
-    config['CONSUMER_SECRET'] = consumer_secret
-    config['CONSUMER_KEY'] = consumer_key
-    if payroll_scope is not None:
-        config['PAYROLL_SCOPE'] = payroll_scope
 
 
 class XeroOauthCallbackForm(forms.Form):
@@ -32,6 +35,7 @@ class XeroOauthCallbackForm(forms.Form):
     oauth_verifier = forms.CharField()
 
 
+@login_required
 def xero_oauth_callback(request):
     """
     A view that will handle the callback from the Xero server on
@@ -50,27 +54,32 @@ def xero_oauth_callback(request):
     
     if form.is_valid():
         credentials = PublicCredentials(**request.session['xero_credentials'])
-        credentials.verify(form.cleaned_data['oauth_verifier'])
-        request.session['xero_credentials'] = credentials.state
+        try:
+            credentials.verify(form.cleaned_data['oauth_verifier'])
+        except XeroUnauthorized as exc:
+            logger.error('Unable to authorise')
+            # Display a nicer error?
+        else:
+            request.session['xero_credentials'] = credentials.state
+            
+            api = Xero(credentials)
+            # self.request.session['xero_organisation'] = api.organisation.all()
         
-        api = Xero(credentials)
-        # self.request.session['xero_organisation'] = api.organisation.all()
-        
-        xero_authorised.send(
-            sender=request,
-            api=api,
-            credentials=credentials
-        )
+            xero_authorised.send(
+                sender=request,
+                api=api,
+                credentials=credentials
+            )
         
     return redirect(request.session.pop('xero_return_url'))
 
 
-def reauthorise(self, request):
+def reauthorise(request):
     credentials = PublicCredentials(
         config['CONSUMER_KEY'], 
         config['CONSUMER_SECRET'],
-        callback_uri=request.build_absolute_uri(reverse(xero_oauth_callback)),
-        scope=config['PAYROLL_SCOPE']
+        callback_uri=request.build_absolute_uri(reverse(config['CALLBACK_NAME'])),
+        scope=config['SCOPE']
     )
     
     request.session['xero_credentials'] = credentials.state
@@ -100,8 +109,10 @@ class XeroMixin(object):
     This also sets a property on the view class instance, called
     api, which contains a Xero() instance, with the verified credentials.
     """
-    
+    def reauthorise(self, request=None):
+        return reauthorise(request or self.request)
 
+    @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
         # We can't just pop it and continue, as that would then deauth when
         # we came back from Xero.
@@ -111,7 +122,7 @@ class XeroMixin(object):
         
         credentials = request.session.get('xero_credentials', None)
         
-        if not credentials or not credentials['verified']:
+        if not credentials or not credentials['verified'] or credentials['expiry'] < datetime.datetime.now():
             return reauthorise(request)
         
         credentials = PublicCredentials(**credentials)
@@ -121,3 +132,5 @@ class XeroMixin(object):
             return super(XeroMixin, self).dispatch(request, *args, **kwargs)
         except XeroUnauthorized:
             return reauthorise(request)
+        
+        # Handle other errors?

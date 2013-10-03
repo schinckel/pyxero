@@ -1,5 +1,5 @@
 #/usr/bin/env python
-from setuptools import setup
+from setuptools import setup, find_packages
 from xero import VERSION
 
 try:
@@ -16,7 +16,7 @@ setup(
     author='Russell Keith-Magee',
     author_email='russell@keith-magee.com',
     url='http://github.com/freakboy3742/pyxero',
-    packages=['xero', ],
+    packages=find_packages(exclude=['tests.*']),
     install_requires=[
         'requests>=1.1.0',
         'requests-oauthlib>=0.3.0',
