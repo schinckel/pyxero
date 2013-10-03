@@ -47,6 +47,10 @@ def parse_date(string, force_datetime=False):
             minutes=int(values.get('offset_m', 0))
         )
     
+    # I've made an assumption here, that a DateTime value will not
+    # ever be YYYY-MM-DDT00:00:00, which is probably bad. I'm not
+    # really sure how to handle this, other than to hard-code the
+    # names of the field that are actually Date rather than DateTime.
     if len(values) > 3 or force_datetime:
         return datetime(**values)
     
