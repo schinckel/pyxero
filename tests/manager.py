@@ -63,7 +63,7 @@ class ManagerTest(unittest.TestCase):
         
         # This fails because we now ask for (and only parse) JSON.
         r_get.return_value = Mock(status_code=200, 
-            headers={'content-type': 'text/xml; charset=utf-8'},
+            headers={'content-type': 'application/json; charset=utf-8'},
             encoding='utf-8',
             text="""{
   "Id": "7dcf9f56-ce86-445b-b884-2984fcf4c3f7",
