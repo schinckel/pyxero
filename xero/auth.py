@@ -6,6 +6,7 @@ import requests
 from requests_oauthlib import OAuth1
 from oauthlib.oauth1 import SIGNATURE_RSA, SIGNATURE_TYPE_AUTH_HEADER
 
+from .constants import XERO_BASE_URL, XERO_PARTNER_BASE_URL
 from .constants import REQUEST_TOKEN_URL, AUTHORIZE_URL, ACCESS_TOKEN_URL
 from .exceptions import *
 
@@ -31,6 +32,8 @@ class PrivateCredentials(object):
         >>> xero.contacts.all()
         ...
     """
+    BASE_URL = XERO_BASE_URL
+    
     def __init__(self, consumer_key, rsa_key):
         self.consumer_key = consumer_key
         self.rsa_key = rsa_key
@@ -81,15 +84,19 @@ class PublicCredentials(object):
         >>> xero.contacts.all()
         ...
     """
+    
+    BASE_URL = XERO_BASE_URL
+    
     def __init__(self, consumer_key, consumer_secret,
                  callback_uri=None, verified=False,
                  oauth_token=None, oauth_token_secret=None,
-                 scope=None, expiry=None):
+                 scope=None, expiry=None, cert=None):
         """Construct the auth instance.
 
         Must provide the consumer key and secret.
         A callback URL may be provided as an option. If provided, the
-        Xero verification process will redirect to that URL when
+        Xero verification process will redirect to that URL when the
+        authentication has completed.
         
         The scope_list should be provided when required by the API,
         for instance, this is required when accessing the PayrollAPI.
@@ -106,6 +113,7 @@ class PublicCredentials(object):
         self.scope = list(scope or [])
         self._oauth = None
         self.expiry = expiry
+        self.cert = cert
 
         if oauth_token and oauth_token_secret:
             if self.verified:
@@ -125,8 +133,8 @@ class PublicCredentials(object):
                 client_secret=self.consumer_secret,
                 callback_uri=self.callback_uri
             )
-
-            response = requests.post(url=REQUEST_TOKEN_URL, auth=oauth)
+            
+            response = requests.post(url=REQUEST_TOKEN_URL % self.BASE_URL, auth=oauth, cert=self.cert)
 
             if response.status_code == 200:
                 credentials = parse_qs(response.text)
@@ -187,7 +195,7 @@ class PublicCredentials(object):
             for attr in (
                 'consumer_key', 'consumer_secret', 'callback_uri',
                 'verified', 'oauth_token', 'oauth_token_secret',
-                'expiry', 'scope'
+                'expiry', 'scope', 'cert'
             )
             if getattr(self, attr) is not None
         )
@@ -205,7 +213,7 @@ class PublicCredentials(object):
         )
 
         # Make the verification request, gettiung back an access token
-        response = requests.post(url=ACCESS_TOKEN_URL, auth=oauth)
+        response = requests.post(url=ACCESS_TOKEN_URL % self.BASE_URL, auth=oauth, cert=self.cert)
 
         if response.status_code == 200:
             credentials = parse_qs(response.text)
@@ -269,3 +277,9 @@ class PublicCredentials(object):
         if self._oauth is None:
             raise XeroNotVerified("Public credentials haven't been verified")
         return self._oauth
+
+
+class PartnerCredentials(PublicCredentials):
+    BASE_URL = XERO_PARTNER_BASE_URL
+    
+    

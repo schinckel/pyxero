@@ -17,11 +17,16 @@ class Xero(object):
         # each of them create an attribute on our self that is
         # the lowercase name of the object and attach it to an
         # instance of a Manager object to operate on it
+        
+        # Because the url depends upon the type of application (public,
+        # partner or private) we need to calculate that now.
+        
+        
         for name in self.OBJECT_LIST:
-            setattr(self, name.lower(), Manager(name, credentials.oauth, url=XERO_API_URL))
+            setattr(self, name.lower(), Manager(name, credentials.oauth, url=XERO_API_URL % credentials.BASE_URL, cert=credentials.cert))
         
         for name in self.PAYROLL_OBJECT_LIST:
-            setattr(self, name.lower(), Manager(name, credentials.oauth, url=XERO_PAYROLL_API_URL))
+            setattr(self, name.lower(), Manager(name, credentials.oauth, url=XERO_PAYROLL_API_URL % credentials.BASE_URL, cert=credentials.cert))
         
         self._organisation = None
     

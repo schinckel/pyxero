@@ -4,7 +4,7 @@ PyXero
 PyXero is a Python API for accessing the REST API provided by the `Xero`_
 accounting tool.
 
-It allows access to both Public and Private applications.
+It allows access to Public, Partner and Private applications.
 
 This code is based off the `sample code provided by Xero`_, which was
 contributed by `IRESS Wealth Management`_, and the `XeroPy`_ packaged version of
@@ -18,7 +18,7 @@ This packages differs in three significant was from `XeroPy`_:
  * It uses the pure-python `PyCrypto`_ library instead of the hard-to-compile
    native M2Crypto wrapper for RSA signing.
 
- * It has been tested on both Public and Private Xero Applications.
+ * It has been tested on Public, Partner and Private Xero Applications.
 
 
 Quickstart:
@@ -119,6 +119,11 @@ to reconstruct an instance of the credentials::
     {'consumer_key': '...', 'consumer_secret': '...', ...}
 
     >>> new_credentials = PublicCredentials(**saved_state)
+
+Parnter Applications
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 Private Applications
 ~~~~~~~~~~~~~~~~~~~~

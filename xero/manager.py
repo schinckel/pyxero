@@ -82,10 +82,11 @@ class Manager(object):
     # name as the root element.
     NO_WRAP_ROOT = (u'PayItems',)
     
-    def __init__(self, name, oauth, url):
+    def __init__(self, name, oauth, url, cert=None):
         self.oauth = oauth
         self.name = name
         self.url = url
+        self.cert = cert
 
         # setup our singular variants of the name
         # only if the name ends in s
@@ -188,7 +189,7 @@ class Manager(object):
             headers['Accept'] = 'application/json'
             import time
             start = time.time()
-            response = getattr(requests, method)(uri, data=body, headers=headers, auth=self.oauth)
+            response = getattr(requests, method)(uri, data=body, headers=headers, auth=self.oauth, cert=self.cert)
             finish = time.time()
             logger.debug("Request to %s took %s", uri, finish-start)
             
@@ -203,7 +204,7 @@ class Manager(object):
                 if response.request.headers.get('Accept', None) == 'application/json':
                     logger.debug("****\n\nRe-running request!")
                     start = time.time()
-                    response = getattr(requests, method)(uri, data=body, headers={}, auth=self.oauth)
+                    response = getattr(requests, method)(uri, data=body, headers={}, auth=self.oauth, cert=self.cert)
                     finish = time.time()
                     logger.debug("Request to %s took %s", uri, finish-start)
             

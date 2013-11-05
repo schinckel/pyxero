@@ -9,8 +9,7 @@ from django.utils.decorators import method_decorator
 from django import forms
 
 from xero.api import Xero
-from xero.auth import PublicCredentials
-from xero.exceptions import XeroUnauthorized, XeroBadRequest
+from xero.exceptions import XeroUnauthorized, XeroBadRequest, XeroForbidden
 
 from .signals import xero_authorised
 
@@ -22,8 +21,16 @@ config = {
     'CONSUMER_KEY': settings.XERO_CONSUMER_KEY,
     'CONSUMER_SECRET': settings.XERO_CONSUMER_SECRET,
     'SCOPE': getattr(settings, 'XERO_SCOPE', []),
-    'CALLBACK_NAME': getattr(settings, 'XERO_CALLBACK_NAME', None)
+    'CALLBACK_NAME': getattr(settings, 'XERO_CALLBACK_NAME', None),
+    'CERTIFICATE': getattr(settings, 'XERO_CLIENT_CERTIFICATE', None),
 }
+
+app_class = getattr(settings, 'XERO_APPLICATION_CLASS', 'xero.auth.PublicCredentials')
+module_name, class_name = app_class.rsplit('.', 1)
+module = __import__(module_name)
+for part in module_name.split('.')[1:]:
+    module = getattr(module, part)
+Credentials = getattr(module, class_name)
 
 
 class XeroOauthCallbackForm(forms.Form):
@@ -53,10 +60,10 @@ def xero_oauth_callback(request):
     form = XeroOauthCallbackForm(request.GET)
     
     if form.is_valid():
-        credentials = PublicCredentials(**request.session['xero_credentials'])
+        credentials = Credentials(**request.session['xero_credentials'])
         try:
             credentials.verify(form.cleaned_data['oauth_verifier'])
-        except XeroUnauthorized as exc:
+        except (XeroUnauthorized, XeroForbidden) as exc:
             logger.error('Unable to authorise')
             # Display a nicer error?
         else:
@@ -75,11 +82,12 @@ def xero_oauth_callback(request):
 
 
 def reauthorise(request):
-    credentials = PublicCredentials(
+    credentials = Credentials(
         config['CONSUMER_KEY'], 
         config['CONSUMER_SECRET'],
         callback_uri=request.build_absolute_uri(reverse(config['CALLBACK_NAME'])),
-        scope=config['SCOPE']
+        scope=config['SCOPE'],
+        cert=config['CERTIFICATE']
     )
     
     request.session['xero_credentials'] = credentials.state
@@ -125,7 +133,7 @@ class XeroMixin(object):
         if not credentials or not credentials['verified'] or credentials['expiry'] < datetime.datetime.now():
             return reauthorise(request)
         
-        credentials = PublicCredentials(**credentials)
+        credentials = Credentials(**credentials)
         self.api = Xero(credentials)
         
         try:
