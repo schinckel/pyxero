@@ -3,7 +3,7 @@ from urlparse import parse_qs
 from urllib import urlencode
 
 import requests
-from requests_oauthlib import OAuth1
+from requests_oauthlib import OAuth1, OAuth1Session
 from oauthlib.oauth1 import SIGNATURE_RSA, SIGNATURE_TYPE_AUTH_HEADER
 
 from .constants import XERO_BASE_URL, XERO_PARTNER_BASE_URL
@@ -90,7 +90,8 @@ class PublicCredentials(object):
     def __init__(self, consumer_key, consumer_secret,
                  callback_uri=None, verified=False,
                  oauth_token=None, oauth_token_secret=None,
-                 scope=None, expiry=None, cert=None):
+                 oauth_session_handle=None,
+                 scope=None, expiry=None, cert=None, rsa_key=None):
         """Construct the auth instance.
 
         Must provide the consumer key and secret.
@@ -114,6 +115,8 @@ class PublicCredentials(object):
         self._oauth = None
         self.expiry = expiry
         self.cert = cert
+        self.rsa_key = rsa_key
+        self.oauth_session_handle = oauth_session_handle
 
         if oauth_token and oauth_token_secret:
             if self.verified:
@@ -195,11 +198,12 @@ class PublicCredentials(object):
             for attr in (
                 'consumer_key', 'consumer_secret', 'callback_uri',
                 'verified', 'oauth_token', 'oauth_token_secret',
-                'expiry', 'scope', 'cert'
+                'oauth_session_handle',
+                'expiry', 'scope', 'cert', 'rsa_key',
             )
             if getattr(self, attr) is not None
         )
-
+    
     def verify(self, verifier):
         "Verify an OAuth token"
 
@@ -211,18 +215,25 @@ class PublicCredentials(object):
             resource_owner_secret=self.oauth_token_secret,
             verifier=verifier
         )
-
+        
+        if self.oauth_session_handle:
+            data = {'oauth_session_handle': self.oauth_session_handle}
         # Make the verification request, gettiung back an access token
         response = requests.post(url=ACCESS_TOKEN_URL % self.BASE_URL, auth=oauth, cert=self.cert)
+        self._handle_verification_response(response)
 
+    def _handle_verification_response(self, response):
         if response.status_code == 200:
             credentials = parse_qs(response.text)
             # Initialize the oauth credentials
+            
             self._init_oauth(
                 credentials.get('oauth_token')[0],
-                credentials.get('oauth_token_secret')[0]
+                credentials.get('oauth_token_secret')[0],
             )
-            self.expiry = datetime.datetime.now() + datetime.timedelta(minutes=30)
+            expires_time = int(credentials.get('oauth_expires_in')[0])
+            self.expiry = datetime.datetime.now() + datetime.timedelta(seconds=expires_time)
+            self.oauth_session_handle = credentials.get('oauth_session_handle')[0]
         elif response.status_code == 400:
             raise XeroBadRequest(response)
 
@@ -280,6 +291,39 @@ class PublicCredentials(object):
 
 
 class PartnerCredentials(PublicCredentials):
+    """
+    
+    """
     BASE_URL = XERO_PARTNER_BASE_URL
     
+    def _init_oauth(self, oauth_token, oauth_token_secret):
+        
+        "Store and initialize the OAuth credentials"
+        self.oauth_token = oauth_token
+        self.oauth_token_secret = oauth_token_secret
+        self.verified = True
+        
+        self._oauth = OAuth1(
+            self.consumer_key,
+            resource_owner_key=self.oauth_token,
+            resource_owner_secret=self.oauth_token_secret,
+            rsa_key=self.rsa_key,
+            signature_method=SIGNATURE_RSA,
+            signature_type=SIGNATURE_TYPE_AUTH_HEADER,
+        )
+        
     
+    def refresh_token(self):
+        oauth = OAuth1(
+            self.consumer_key,
+            client_secret=self.consumer_secret,
+            resource_owner_key=self.oauth_token,
+            resource_owner_secret=self.oauth_token_secret,
+        )
+        params={
+            'oauth_session_handle': self.oauth_session_handle,
+            'oauth_token': self.oauth_token,
+        }
+        response = requests.get(url=ACCESS_TOKEN_URL % self.BASE_URL, params=params, auth=self.oauth, cert=self.cert)
+        
+        self._handle_verification_response(response)

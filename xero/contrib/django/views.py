@@ -23,6 +23,7 @@ config = {
     'SCOPE': getattr(settings, 'XERO_SCOPE', []),
     'CALLBACK_NAME': getattr(settings, 'XERO_CALLBACK_NAME', None),
     'CERTIFICATE': getattr(settings, 'XERO_CLIENT_CERTIFICATE', None),
+    'RSA_KEY': getattr(settings, 'XERO_PRIVATE_KEY', None),
 }
 
 app_class = getattr(settings, 'XERO_APPLICATION_CLASS', 'xero.auth.PublicCredentials')
@@ -82,14 +83,19 @@ def xero_oauth_callback(request):
 
 
 def reauthorise(request):
+    if 'RSA_KEY' in config:
+        config['RSA_KEY'] = open(config['RSA_KEY']).read()
+    
     credentials = Credentials(
         config['CONSUMER_KEY'], 
         config['CONSUMER_SECRET'],
         callback_uri=request.build_absolute_uri(reverse(config['CALLBACK_NAME'])),
         scope=config['SCOPE'],
-        cert=config['CERTIFICATE']
+        cert=config['CERTIFICATE'],
+        rsa_key=config['RSA_KEY'],
     )
     
+    # If we have a session handle, then we can just automatically reauth?
     request.session['xero_credentials'] = credentials.state
     
     if request.is_ajax():
@@ -100,7 +106,6 @@ def reauthorise(request):
         template_name = 'xero/auth/page.html'
     
     return render(request, template_name, {'credentials': credentials})
-
 
 class XeroMixin(object):
     """
@@ -130,10 +135,23 @@ class XeroMixin(object):
         
         credentials = request.session.get('xero_credentials', None)
         
-        if not credentials or not credentials['verified'] or credentials['expiry'] < datetime.datetime.now():
+        if not credentials or not credentials['verified']:
             return reauthorise(request)
         
-        credentials = Credentials(**credentials)
+        expiry = credentials.get('expiry', datetime.datetime.now())
+        now = datetime.datetime.now()
+        
+        # If we are within 2 minutes of expiry, then we can reauth.
+        # Is there a way we can push this into the background?
+        if credentials.get('oauth_session_handle', None) and expiry < now + datetime.timedelta(minutes=2):
+            credentials = Credentials(**credentials)
+            credentials.refresh_token()
+            request.session['xero_credentials'] = credentials.state
+        elif expiry <= now:
+            return reauthorise(request)
+        else:
+            credentials = Credentials(**credentials)
+        
         self.api = Xero(credentials)
         
         try:
