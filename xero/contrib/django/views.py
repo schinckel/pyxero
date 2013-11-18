@@ -157,6 +157,7 @@ class XeroMixin(object):
         try:
             return super(XeroMixin, self).dispatch(request, *args, **kwargs)
         except XeroUnauthorized:
+            # Should we see if our token has expired, and try again?
             return reauthorise(request)
         
         # Handle other errors?

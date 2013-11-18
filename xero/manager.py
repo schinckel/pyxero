@@ -241,6 +241,7 @@ class Manager(object):
                 raise XeroBadRequest(response)
 
             elif response.status_code == 401:
+                # Hmm. Should we see if we can refresh our token?
                 raise XeroUnauthorized(response)
 
             elif response.status_code == 403:

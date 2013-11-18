@@ -291,13 +291,72 @@ class PublicCredentials(object):
 
 
 class PartnerCredentials(PublicCredentials):
-    """
+    """An object wrapping the 3-step OAuth process for Parter Xero API access.
+    
+    A PartnerApplication is only available upon request from Xero.
+    
+    Usage:
+    
+    1) Construct a PartnerCredentials() instance:
+    
+       >>> from xero import PartnerCredentials
+       >>> credentials = PartnerCredentials(
+           <consumer_key>, <consumer_secret>,
+           cert=(<path-to-entrust-cert>, <path-to-entrust-key>),
+           rsa_key=<rsa_key>
+       )
+    
+       cert should be a 2-tuple, with paths to the two files that
+       would have been generated when you post-process the certificate
+       that you generated as part of the Partner upgrade program.
+        
+       rsa_key should be a multi-line string, starting with:
+    
+           -----BEGIN RSA PRIVATE KEY-----\n
+    
+       This key must be the private key for which you have uploaded the
+       matching public key.
+        
+    2) Visit the authentication URL:
+
+       >>> credentials.url
+
+       If a callback URI was provided (e.g., https://example.com/oauth),
+       the user will be redirected to a URL of the form:
+
+       https://example.com/oauth?oauth_token=<token>&oauth_verifier=<verifier>&org=<organization ID>
+
+       from which the verifier can be extracted. If no callback URI is
+       provided, the verifier will be shown on the screen, and must be
+       manually entered by the user.
+
+    3) Verify the instance:
+
+       >>> credentials.verify(<verifier string>)
+
+    4) Use the credentials.
+
+       >>> from xero import Xero
+       >>> xero = Xero(credentials)
+       >>> xero.contacts.all()
+    
+    5) Refresh your token (as required).
+    
+       Part of the benefit of the Partner Application is that you may
+       refresh expired tokens. The PartnerCredentials() instance you
+       generated initially (or re-created from credentials.state) has
+       a method that will refresh a token:
+       
+       >>> credentials = PartnerCredentials(**stored_credentials)
+       >>> credentials.refresh_token()
+       
+       You may refresh a token at any time, as long as the time-frame
+       for `oauth_authorization_expires_in` has not passed.
     
     """
     BASE_URL = XERO_PARTNER_BASE_URL
     
     def _init_oauth(self, oauth_token, oauth_token_secret):
-        
         "Store and initialize the OAuth credentials"
         self.oauth_token = oauth_token
         self.oauth_token_secret = oauth_token_secret
@@ -314,6 +373,7 @@ class PartnerCredentials(PublicCredentials):
         
     
     def refresh_token(self):
+        "Refresh the token, if possible."
         oauth = OAuth1(
             self.consumer_key,
             client_secret=self.consumer_secret,
