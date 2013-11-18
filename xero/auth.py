@@ -232,9 +232,10 @@ class PublicCredentials(object):
                 credentials.get('oauth_token')[0],
                 credentials.get('oauth_token_secret')[0],
             )
-            expires_time = int(credentials.get('oauth_expires_in')[0])
+            
+            expires_time = int(credentials.get('oauth_expires_in', [1800])[0])
             self.expiry = datetime.datetime.now() + datetime.timedelta(seconds=expires_time)
-            self.oauth_session_handle = credentials.get('oauth_session_handle')[0]
+            self.oauth_session_handle = credentials.get('oauth_session_handle', [None])[0]
         elif response.status_code == 400:
             raise XeroBadRequest(response)
 

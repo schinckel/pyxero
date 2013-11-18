@@ -11,7 +11,7 @@ from xero import Xero
 
 
 class ManagerTest(unittest.TestCase):
-    @unittest.expectedFailure
+    
     def test_serialization(self):
         "An invoice can be correctly serialized for a POST/PUT request"
         # This test currently fails, because we got rid of the walk_dom
