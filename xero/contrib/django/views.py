@@ -67,6 +67,7 @@ def xero_oauth_callback(request):
         except (XeroUnauthorized, XeroForbidden) as exc:
             logger.error('Unable to authorise')
             # Display a nicer error?
+            # Add a message to contrib.messages?
         else:
             request.session['xero_credentials'] = credentials.state
             
@@ -83,6 +84,12 @@ def xero_oauth_callback(request):
 
 
 def reauthorise(request):
+    """
+    A helper for reauthorising an expired instance.
+    
+    This overwrites anything that is currently stored in
+    the session['xero_credentials'].
+    """
     if 'RSA_KEY' in config:
         config['RSA_KEY'] = open(config['RSA_KEY']).read()
     

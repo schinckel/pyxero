@@ -223,6 +223,7 @@ class PublicCredentials(object):
         self._handle_verification_response(response)
 
     def _handle_verification_response(self, response):
+        "Helper method to handle response from verify/refresh_token"
         if response.status_code == 200:
             credentials = parse_qs(response.text)
             # Initialize the oauth credentials
