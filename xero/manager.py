@@ -12,6 +12,7 @@ import urllib
 import requests
 
 from .exceptions import *
+from . import VERSION
 
 logger = logging.getLogger('pyxero')
 
@@ -187,6 +188,7 @@ class Manager(object):
             if not headers:
                 headers = {}
             headers['Accept'] = 'application/json'
+            headers['User-Agent'] = 'pyxero/%s ' % VERSION + requests.utils.default_user_agent()
             import time
             start = time.time()
             response = getattr(requests, method)(uri, data=body, headers=headers, auth=self.oauth, cert=self.cert)
