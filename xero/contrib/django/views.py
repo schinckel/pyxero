@@ -25,6 +25,8 @@ config = {
     'CERTIFICATE': getattr(settings, 'XERO_CLIENT_CERTIFICATE', None),
     'RSA_KEY': getattr(settings, 'XERO_PRIVATE_KEY', None),
 }
+if config['RSA_KEY']:
+    config['RSA_KEY'] = open(config['RSA_KEY']).read()
 
 app_class = getattr(settings, 'XERO_APPLICATION_CLASS', 'xero.auth.PublicCredentials')
 module_name, class_name = app_class.rsplit('.', 1)
@@ -90,9 +92,6 @@ def reauthorise(request):
     This overwrites anything that is currently stored in
     the session['xero_credentials'].
     """
-    if 'RSA_KEY' in config and not '-----BEGIN RSA PRIVATE KEY-----' in config['RSA_KEY']:
-        config['RSA_KEY'] = open(config['RSA_KEY']).read()
-    
     credentials = Credentials(
         config['CONSUMER_KEY'], 
         config['CONSUMER_SECRET'],
