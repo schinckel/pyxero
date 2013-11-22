@@ -6,5 +6,5 @@ try:
 except ImportError:
     pass
 
-NUM_VERSION = (0, 6, 0, 'b', 5)
+NUM_VERSION = (0, 6, 0, 'b', 7)
 VERSION = ".".join(str(nv) for nv in NUM_VERSION)

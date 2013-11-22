@@ -90,7 +90,7 @@ def reauthorise(request):
     This overwrites anything that is currently stored in
     the session['xero_credentials'].
     """
-    if 'RSA_KEY' in config:
+    if 'RSA_KEY' in config and not '-----BEGIN RSA PRIVATE KEY-----' in config['RSA_KEY']:
         config['RSA_KEY'] = open(config['RSA_KEY']).read()
     
     credentials = Credentials(
