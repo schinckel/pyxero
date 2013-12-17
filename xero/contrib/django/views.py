@@ -151,10 +151,14 @@ class XeroMixin(object):
         # Is there a way we can push this into the background?
         if credentials.get('oauth_session_handle', None) and expiry < now + datetime.timedelta(minutes=2):
             credentials = Credentials(**credentials)
-            credentials.refresh_token()
+            
+            try:
+                credentials.refresh_token()
+            except XeroUnauthorized:
+                request.session.pop('xero_credentials', None)
+                return redirect(request.path)
+            
             request.session['xero_credentials'] = credentials.state
-        elif expiry <= now:
-            return reauthorise(request)
         else:
             credentials = Credentials(**credentials)
         
@@ -164,6 +168,13 @@ class XeroMixin(object):
             return super(XeroMixin, self).dispatch(request, *args, **kwargs)
         except XeroUnauthorized:
             # Should we see if our token has expired, and try again?
+            try:
+                credentials.refresh_token()
+            except XeroUnauthorized:
+                request.session.pop('xero_credentials', None)
+                return redirect(request.path)
+            else:
+                return super(XeroMixin, self).dispatch(request, *args, **kwargs)
             return reauthorise(request)
         
         # Handle other errors?
