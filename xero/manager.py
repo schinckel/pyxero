@@ -44,12 +44,18 @@ def parse_date(string, force_datetime=False):
     ])
     
     if 'timestamp' in values:
-        return datetime.utcfromtimestamp(
-            int(values['timestamp']) / 1000.0
-        ) + timedelta(
+        value = datetime.utcfromtimestamp(0) + timedelta(
             hours=int(values.get('offset_h', 0)),
-            minutes=int(values.get('offset_m', 0))
+            minutes=int(values.get('offset_m', 0)),
+            seconds=int(values['timestamp']) / 1000.0
         )
+        return value
+        # Hmm not sure about this either: it returns a Date object
+        # if the time is 00:00. See the note below. For now, we'll just
+        # return the datetime, and allow end-user to handle it.
+        if not value.time():
+            return value.date()
+        return value
     
     # I've made an assumption here, that a DateTime value will not
     # ever be YYYY-MM-DDT00:00:00, which is probably bad. I'm not
